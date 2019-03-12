@@ -1,0 +1,4 @@
+
+Rscript ./make_figures.R <path to settings.yaml for pigx_crispr run>
+
+
