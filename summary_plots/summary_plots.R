@@ -86,13 +86,23 @@ indelStats$tech <- sampleSheet[match(indelStats$sample, sampleSheet$sample_name)
 
 pdf("indel_efficiencies_at_cut_sites.pdf")
 # Compare indel efficiencies at cut sites between treated and untreated samples 
-dt <- indelStats[sampleMatchesGuide == TRUE]
+dt <- indelStats[sampleMatchesGuide == TRUE & tech == 'illumina']
 ggboxplot(dt, x = "treatment", y = "scores",
           color = "treatment", palette = "jco",
-          add = "jitter") + 
+          add = "dotplot") + 
   geom_text(stat="count", aes(label=paste('n =',..count..)), y = -1) +
   stat_compare_means() +
   labs(title = paste('Indel efficiencies at cut sites'), 
+       y = 'Indel Efficiency (%)')   
+
+ggplot(dt, aes(x = treatment, y = scores)) + 
+  geom_boxplot(outlier.shape = NA) + 
+  geom_text(stat="count", aes(label=paste('n =',..count..)), y = -1) +
+  geom_jitter(aes(color = treatment), width = 0.4, height = 0, show.legend = FALSE) + 
+  labs(title = paste('Indel efficiencies at cut sites'), 
        y = 'Indel Efficiency (%)')  + 
-  facet_grid(~ tech)
+  theme_classic(base_size = 14)
 dev.off()
+
+
+
