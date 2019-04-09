@@ -1,12 +1,7 @@
 library(ggplot2)
 library(ggrepel)
 library(data.table)
-library(plotly)
-library(knitr)
-library(crosstalk)
-library(parallel)
 library(ggpubr)
-library(ggmosaic)
 library(rtracklayer)
 library(yaml)
 
