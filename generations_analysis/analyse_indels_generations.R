@@ -11,7 +11,6 @@ settings_file <- args[1]
 #initial setup
 settings <- yaml::read_yaml(settings_file)
 sampleSheet <- data.table::fread(settings$sample_sheet)
-cutSites <- rtracklayer::import.bed(con = settings$cutsites)
 pipelineOutputDir <- settings$`output-dir`
 analysisTable <- read.table(file = 'analysis_table.tsv', 
                             header = TRUE, sep = '\t')
