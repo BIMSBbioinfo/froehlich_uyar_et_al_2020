@@ -99,9 +99,6 @@ plots <- lapply(unique(as.character(analysisTable$analysisGroup)), function(ag) 
     #now summarize indels by sample, 
     df <- dcast(dt, indelID ~ generation, value.var = 'freq', fill = 0)
     
-    #calculate average counts per indel over generations
-    df.count <- dcast(dt, indelID ~  generation, value.var = 'ReadSupport', fill = 0)
-    
     #prepare data frame for a heatmap 
     M <- as.matrix(subset(df, select = c('F2', 'F3', 'F4', 'F5')))
     rownames(M) <- df$indelID
@@ -113,6 +110,8 @@ plots <- lapply(unique(as.character(analysisTable$analysisGroup)), function(ag) 
     rownames(annoDf) <- annoDf$indelID
     annoDf$indelID <- NULL
     
+    ## calculate average counts per indel over generations
+    df.count <- dcast(dt, indelID ~  generation, value.var = 'ReadSupport', fill = 0)
     annoDf$log10_read_count <- log10(rowMeans(df.count[match(rownames(annoDf), df.count$indelID),2:5])) #log10(annoDf$count)
     
     #fontsize <- ifelse(ceiling(nrow(mat)/50) >= 5, 1, ceiling(nrow(mat)/50))
@@ -127,8 +126,8 @@ plots <- lapply(unique(as.character(analysisTable$analysisGroup)), function(ag) 
                              show_rownames = FALSE, 
                              main = paste('Deletion frequency over generations\nsample group:',ag,
                                           '\ntemperature:',t), border_color = NA))
+    
     dev.off()
   })
 })
-
 
