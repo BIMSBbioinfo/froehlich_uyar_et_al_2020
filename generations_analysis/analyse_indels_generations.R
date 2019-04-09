@@ -127,6 +127,13 @@ plots <- lapply(unique(as.character(analysisTable$analysisGroup)), function(ag) 
                              main = paste('Deletion frequency over generations\nsample group:',ag,
                                           '\ntemperature:',t), border_color = NA))
     
+    rownames(df) <- df$indelID
+    df2 <- merge(df, annoDf, by = 'row.names')
+    df2 <- melt(df2, id.vars = c('indelID', 'F2', 'F5'), measure.vars = grep('let7', colnames(df2), value = T))
+    print(ggplot(df2, 
+           aes(y = log2((F5+10^-5)/(F2+10^-5)))) + geom_boxplot(aes(fill = value)) + 
+      facet_wrap(~ variable, nrow = 2))
+
     dev.off()
   })
 })
