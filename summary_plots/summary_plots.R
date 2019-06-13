@@ -127,7 +127,11 @@ removedSamples <- c(
   grep('timecourse', sampleSheet$sample_name),
   
   ##remove snb-1 "ctrl" strain (is a mutants strain and not N2)
-  grep('ctrl_strain', sampleSheet$sample_name)
+  grep('ctrl_strain', sampleSheet$sample_name),
+  
+  # remove samples with very high off-target alignments 
+  which(sampleSheet$target_name == 'par-2_CDS'), 
+  which(sampleSheet$target_name == 'rol-6_ups')
   )
 
 
@@ -386,33 +390,87 @@ perbase_deletions$treatment <- ifelse(sampleSheet[match(perbase_deletions$sample
                                'untreated', 'treated')
 perbase_deletions$target_name <- sampleSheet[match(perbase_deletions$sample, sample_name)]$target_name
 
-# number of bases affected by number of indels 
-dt <- perbase_indels[treatment == 'treated'][del > 0][,length(bp), 
-                                                      by = c('del', 'sample', 'target_name', 'guide_count')]
-target_widths <- perbase_indels[,max(bp),by = target_name]
-dt$target_width <- target_widths[match(dt$target_name, target_name)]$V1
-
-
-my_labeller <- function(x) {
-  paste0("sgRNA count: ",x)
-}
-
 pdf("bases_affected_versus_number_of_indels.pdf")
-ggplot2::ggplot(dt, aes(x = as.factor(del), y = V1)) + 
-  geom_boxplot(outlier.shape = NA) + 
-  geom_jitter(height = 0, width = 0.1) +
-  labs(x = 'Number of deletions', y = "Number of bases affected") + coord_flip() + 
-  facet_wrap(~ guide_count, ncol = 4, scales = 'free', labeller = labeller(guide_count = my_labeller))
-
-ggplot2::ggplot(perbase_indels[del > 0], aes(x = del)) + geom_histogram(binwidth = 1) 
-
-ggplot2::ggplot(dt, aes(x = as.factor(del), y = round(V1/target_width*100,1))) + 
-  geom_boxplot(outlier.shape = NA) + 
-  geom_jitter(height = 0, width = 0.1) +
-  labs(x = 'Number of deletions', y = "Percentage of bases affected") + coord_flip() + 
-  facet_wrap(~ guide_count, ncol = 4, scales = 'free', labeller = labeller(guide_count = my_labeller)) 
+ggplot2::ggplot(perbase_deletions[treatment == 'treated' & del_single_cut > 0], 
+                aes(x = del_single_cut)) + 
+  geom_histogram(binwidth = 1) 
+ggplot2::ggplot(perbase_deletions[treatment == 'treated' & del_double_cut > 0], aes(x = del_double_cut)) + 
+  geom_histogram(binwidth = 1) 
 dev.off()
 
+# for each guide, look for number of deletions with respect to the guide location 
+# extending +/- 1000 bp in each direction 
+#inverted version of the sampleGuides object 
+#only consider treated samples 
+treated_samples <- sampleSheet[sampleSheet$sgRNA_ids != 'none']$sample_name
+guideSamples <- do.call(rbind, lapply(treated_samples, function(s) {
+  data.frame("sample" = s, "guide" = sampleGuides[[s]], stringsAsFactors = FALSE)
+}))
+
+guideSamples <- lapply(split(guideSamples, guideSamples$guide), function(x) {
+  unique(x$sample)
+})
+
+get_diversity <- function(guideSamples, flanksize, doubleCuts = NULL) {
+  #for each guide, find number of deletions overlapping the +/- 500 bp of the cut site
+  diversity <- do.call(cbind, pbapply::pblapply(names(guideSamples), function(g) {
+    #coordinates of the guide
+    gr <- flank(cutSites[cutSites$name == g], flanksize, both = TRUE)
+    #get deletions from the samples in which the guide was used 
+    #and find those that overlap the specific cut site 
+    dt <- deletions[sample %in% guideSamples[[g]] & 
+                      ReadSupport > 5 & 
+                      freq > 10^-5][get(g) == 1]
+    if(!is.null(doubleCuts)) {
+      dt <- dt[doubleCutEvent == doubleCuts]
+    }
+    #now get number of deletions per base around the given cut site
+    if(nrow(dt) > 0) {
+      dt <- as(dt, "GRanges")
+      div <- subsetRleListByRange(input.rle = GenomicRanges::coverage(dt), input.gr = gr)
+      div[is.na(div)] <- 0
+      # normalize by the number of samples 
+      div <- div / length(guideSamples[[g]])
+    } else {
+      div <- rep(0, flanksize * 2)
+    }
+    df <- data.frame(div)
+    colnames(df) <- g
+    return(df)
+  }))
+  return(diversity)
+}
+
+diversity_single <- get_diversity(guideSamples, 250, doubleCuts = FALSE)
+diversity_all <- get_diversity(guideSamples, 2000)
+
+pdf("Deletion_diversity_around_cut_sites.pdf")
+M <- t(diversity_single)
+pheatmap::pheatmap(M[names(sort(apply(M, 1, mean), decreasing = T)),], 
+                   cluster_cols = FALSE, cluster_rows = FALSE, 
+                   color = colorRampPalette(c("white", "blue", "red"))(max(M)), 
+                   fontsize_row = 6,  
+                   #filename = 'deletion_diversity.only_single_cuts.pdf', 
+                   main = 'Deletion Diversity +/- 250 bp of cut sites\n
+                   Only single cuts', 
+                   labels_col = c(-250, rep('', 248), 0, rep('', 249), 250), 
+                   fontsize_col = 12
+                   )
+M <- t(diversity_all)
+pheatmap::pheatmap(M[names(sort(apply(M, 1, mean), decreasing = T)),], 
+                   cluster_cols = FALSE, cluster_rows = FALSE, 
+                   color = colorRampPalette(c("white", "blue", "red"))(max(M)), 
+                   fontsize_row = 6, 
+                   #filename = 'deletion_diversity.single_or_doublecuts.pdf', 
+                   main = 'Deletion Diversity +/- 2000 bp of cut sites\n
+                   Single or Double Cuts',
+                   labels_col = c(-2000, rep('', 1998), 0, rep('', 1999), 2000), 
+                   fontsize_col = 12
+)
+dev.off()
+
+
+###############################################################################
 
 ### make some plots on insertions (including inserted sequences information)
 
@@ -500,7 +558,10 @@ pdf("insertion_length_density_plot.pdf")
 print(cowplot::plot_grid(plotlist = insertion_density_plots, labels = "AUTO"))
 dev.off()
 
+# length distribution of insertions
 
+ggplot2::ggplot(insertions[atCutSite == TRUE & freq > 10^-5 & ReadSupport > 5], 
+                aes(insertionWi)
 
 
 
