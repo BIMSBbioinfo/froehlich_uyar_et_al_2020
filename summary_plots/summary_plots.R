@@ -4,6 +4,8 @@ library(data.table)
 library(ggpubr)
 library(rtracklayer)
 library(yaml)
+library(ComplexHeatmap)
+library(circlize)
 
 args = commandArgs(trailingOnly=TRUE)
 
@@ -200,16 +202,6 @@ indels$indelLength <- indels$end - indels$start + 1
 indels$treatment <- ifelse(sampleSheet[match(indels$sample, sampleSheet$sample_name),]$sgRNA_ids == 'none', 
                            'untreated', 'treated')
 
-# plot proportion of indels per sample
-pdf("proportion_of_indels_per_sample.pdf", height = 20)
-ggplot(data = indels[,length(seqnames), by = c('indelType', 'sample')], 
-            aes(x = sample, y = V1)) + 
-  geom_bar(aes(fill = indelType), stat = 'identity', position = 'fill') + 
-  scale_fill_brewer(palette = 'Set1') + 
-  labs(y = 'Indel Ratio') + 
-  geom_text(aes(x = sample, y = 0.2, label = sample), size = 2, color = 'white') +
-  theme(axis.text.y =  element_blank(), legend.position = 'bottom') + coord_flip() 
-dev.off()
 
 # find out if indels overlap cut sites 
 #find overlaps with cut sites (only considering guides used in the corresponding sample)
@@ -293,28 +285,21 @@ deletion_counts_plots <- sapply(simplify = FALSE, USE.NAMES = TRUE, X = c(1e-04,
 })
 dev.off()
 
+pdf("Deletion_size_distribution.pdf")
+dt <- deletions[atCutSite == TRUE][ReadSupport > 5 & freq > 10^-5]
+dt$doubleCutEvent <- ifelse(dt$doubleCutEvent == TRUE, "double-cut", "single-cut")
 # check length distribution of deletions at cut sites for treated samples
-ggplot2::ggplot(deletions[atCutSite == TRUE & treatment == 'treated'][ReadSupport > 5 & freq > 10^-5], 
-                aes(x = doubleCutEvent, y = log10(indelLength))) + 
-  geom_violin() + 
-  geom_jitter(aes(color = doubleCutEvent), width = 0.2, alpha = 0.25) + 
-  labs(title = paste('Length distribution of single-cut or double-cut deletions'), 
-       y = 'log10 Deletion Length')  + 
-  theme_classic(base_size = 14) + 
-  scale_color_brewer(palette = 'Set1') + 
-  scale_fill_brewer(palette = 'Set1')
-
-# facet by treatment or single/double cut deletions 
-ggplot2::ggplot(deletions[atCutSite == TRUE][ReadSupport > 5 & freq > 10^-5], 
+ggplot2::ggplot(dt, 
                 aes(x = treatment, y = log10(indelLength))) + 
   geom_violin() + 
   geom_jitter(aes(color = treatment), width = 0.2, alpha = 0.25) + 
-  facet_wrap(~ doubleCutEvent, nrow = 1) + 
   labs(title = paste('Length distribution of single-cut or double-cut deletions'), 
        y = 'log10 Deletion Length')  + 
   theme_classic(base_size = 14) + 
   scale_color_brewer(palette = 'Set1') + 
-  scale_fill_brewer(palette = 'Set1') 
+  scale_fill_brewer(palette = 'Set1') + 
+  facet_wrap(~ doubleCutEvent)
+dev.off()
 
 # Off-target indels 
 ## count number of off-target indel alignments 
@@ -441,32 +426,40 @@ get_diversity <- function(guideSamples, flanksize, doubleCuts = NULL) {
   return(diversity)
 }
 
-diversity_single <- get_diversity(guideSamples, 250, doubleCuts = FALSE)
+
+plotDiversity <- function(diversity, title) {
+  M <- t(diversity)
+  #sort by rowmeans
+  M <- M[names(sort(apply(M, 1, mean), decreasing = T)),]
+  # column top annotation
+  ha_top = HeatmapAnnotation("Mean\ndeletions\nper base" = anno_barplot(axis_side = 'left', 
+                                                                    axis = TRUE, 
+                                                                    x = colMeans(M), 
+                                                                    which = 'column'), 
+                         height = unit(3, "cm"), show_annotation_name = TRUE, 
+                         name = "Mean\ndeletions\nper base")
+  d <- ncol(M)/2
+  ha_bottom <- columnAnnotation(text = anno_text(c(-d, rep('', d-2), 0, rep('', d-1), d)))
+  
+  #define the  legend
+  col_fun = colorRamp2(c(0, max(M)), c("white", "blue"))
+
+  ComplexHeatmap::Heatmap(M, col = col_fun,
+                          column_title = title,
+                          cluster_rows = FALSE, cluster_columns = FALSE, 
+                          row_names_side = 'left',
+                          top_annotation = ha_top,  
+                          bottom_annotation = ha_bottom, 
+                          name = 'Deletions\nPer Base', 
+                          row_names_gp = gpar(fontsize = 5))
+}
+
+diversity_single <- get_diversity(guideSamples, 50, doubleCuts = FALSE)
 diversity_all <- get_diversity(guideSamples, 2000)
 
 pdf("Deletion_diversity_around_cut_sites.pdf")
-M <- t(diversity_single)
-pheatmap::pheatmap(M[names(sort(apply(M, 1, mean), decreasing = T)),], 
-                   cluster_cols = FALSE, cluster_rows = FALSE, 
-                   color = colorRampPalette(c("white", "blue", "red"))(max(M)), 
-                   fontsize_row = 6,  
-                   #filename = 'deletion_diversity.only_single_cuts.pdf', 
-                   main = 'Deletion Diversity +/- 250 bp of cut sites\n
-                   Only single cuts', 
-                   labels_col = c(-250, rep('', 248), 0, rep('', 249), 250), 
-                   fontsize_col = 12
-                   )
-M <- t(diversity_all)
-pheatmap::pheatmap(M[names(sort(apply(M, 1, mean), decreasing = T)),], 
-                   cluster_cols = FALSE, cluster_rows = FALSE, 
-                   color = colorRampPalette(c("white", "blue", "red"))(max(M)), 
-                   fontsize_row = 6, 
-                   #filename = 'deletion_diversity.single_or_doublecuts.pdf', 
-                   main = 'Deletion Diversity +/- 2000 bp of cut sites\n
-                   Single or Double Cuts',
-                   labels_col = c(-2000, rep('', 1998), 0, rep('', 1999), 2000), 
-                   fontsize_col = 12
-)
+plotDiversity(diversity_single, "Deletion Diversity +/- 50 bp of cut sites \nOnly Single Cuts")
+plotDiversity(diversity_all, "Deletion Diversity +/- 2000 bp of cut sites \n Single or Double Cuts")
 dev.off()
 
 
@@ -560,8 +553,97 @@ dev.off()
 
 # length distribution of insertions
 
-ggplot2::ggplot(insertions[atCutSite == TRUE & freq > 10^-5 & ReadSupport > 5], 
-                aes(insertionWi)
+pdf("Insertion_size_distribution.pdf")
+# check length distribution of deletions at cut sites for treated samples
+ggplot2::ggplot(insertions[atCutSite == TRUE][ReadSupport > 5 & freq > 10^-5], 
+                aes(x = treatment, y = insertionWidth)) + 
+  geom_jitter(aes(color = treatment), width = 0.05, alpha = 0.05) + 
+  geom_violin(fill = NA) + 
+  labs(title = paste('Length distribution of insertions'), 
+       y = 'Insertion Length')  + 
+  theme_classic(base_size = 14) + 
+  scale_color_brewer(palette = 'Set1') + 
+  scale_fill_brewer(palette = 'Set1')
+dev.off()
+
+###########################################################################
+
+# classification of indel events as insertion/deletion/complex 
+# count number of reads with single insertion, single deletion, and complex
+# filter out reads with at least 1 deletion and 1 insertion
+# filter out reads that have substitutions adjacent to deletions or insertions (suggest complex events)
+classify_reads <- function(aln) {
+  dt <- data.table::data.table('cigar' = cigar(aln), 
+                               'readID' = mcols(aln)$qname)
+  # find reads with any indels 
+  any_indel <- dt[which(stringi::stri_count(regex = "D|I", dt$cigar) > 0),]$readID
+  
+  #find reads with more than one insertions or deletions  
+  mul_indel <- dt[which(stringi::stri_count(regex = "D|I", dt$cigar) > 1),]$readID
+  
+  #find reads with substitutions adjacent to a deletion
+  adj_del_sub <- dt[grepl(pattern = '(X[0-9]+D)|(D[0-9]+X)', x = dt$cigar)]$readID
+  
+  #find reads with substitutions adjacent to an insertion
+  adj_ins_sub <- dt[grepl(pattern = '(X[0-9]+I)|(I[0-9]+X)', x = dt$cigar)]$readID
+  
+  #take the union of all types of reads to remove
+  complex <- unique(c(mul_indel, adj_del_sub, adj_ins_sub))
+  
+  # find reads with only one deletion
+  single_del <- dt[which(stringi::stri_count(regex = "D", dt$cigar) == 1),]$readID
+  single_del <- setdiff(single_del, complex)
+  
+  # find reads with only one insertion
+  single_ins <- dt[which(stringi::stri_count(regex = "I", dt$cigar) == 1),]$readID
+  single_ins <- setdiff(single_ins, complex)
+  
+  res <- data.frame("any_indel" = length(any_indel), 
+                    "single_del" = length(single_del), 
+                    "single_ins" = length(single_ins), 
+                    "complex" = length(complex))
+  
+  return(res)
+}
+
+# for each sample, read the bam file and classify reads based on cigar strings
+cl <- parallel::makeCluster(20)
+parallel::clusterExport(cl = cl, varlist = c('sampleSheet', 'settings', 'classify_reads'))
+indel_ratios <- do.call(rbind, pbapply::pblapply(cl = cl, X = sampleSheet$sample_name, 
+                                                 FUN = function(s) {
+  require(GenomicAlignments)
+  require(stringi)
+  require(data.table)
+                                                   
+  bamFile <- file.path(settings$`output-dir`, "aln_merged", 
+                       paste0(s, ".bam"))
+  if(file.exists(bamFile)) {
+    aln <- GenomicAlignments::readGAlignments(bamFile, 
+                                              param = Rsamtools::ScanBamParam(what=c("qname")))
+    df <- classify_reads(aln = aln)
+    df$sample <- s
+    return(df)
+  } else {
+    stop("Can't open bam file at",bamFile,"\n")
+  }
+}))
+parallel::stopCluster(cl)
+
+indel_ratios$order <- order(indel_ratios$single_del/indel_ratios$any_indel, decreasing = T)
+
+mdf <- melt(indel_ratios[,-1], id.vars = c('sample', 'order'))
+
+# plot proportion of indels per sample
+pdf("proportion_of_indels_per_sample.pdf")
+ggplot(data = mdf, 
+       aes(x = reorder(sample, order), y = value)) + 
+  geom_bar(aes(fill = variable), stat = 'identity', position = 'fill') + 
+  scale_fill_brewer(palette = 'Set1') + 
+  labs(y = 'Indel Ratio') + 
+  theme(axis.title.y = element_blank(), axis.text.y = element_text(size = 6)) + 
+  coord_flip() 
+dev.off()
+
 
 
 
