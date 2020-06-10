@@ -13,7 +13,7 @@ settings_file <- args[1] # settings.yaml file that was used to run the pipeline
 analysis_table_file <- args[2] # table of analysed samples (analysis_table.tsv)
 
 source('../utility_functions.R')
-analysisTable <- data.table::fread('analysis_table.tsv', header = T)
+analysisTable <- data.table::fread(analysis_table_file, header = T)
 
 # get sample analysis groups: F2 .. F5 generation samples  
 samples_analysed <- lapply(split(analysisTable, analysisTable$analysisGroup), 
