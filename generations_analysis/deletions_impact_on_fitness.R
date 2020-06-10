@@ -114,7 +114,6 @@ plot_read_survival <- function(reads_dt, samples, sites, lib_sizes) {
   return(p)
 }
 
-# here we keeps deletions in rna samples if they also exist in the dna sample
 get_plots <- function(dt, samples_analysed, sample_order = c('F2', 'F3', 'F4', 'F5'), 
                       reference_generation = 'F2', 
                       readSupportThreshold = 0, sites) {
@@ -126,13 +125,24 @@ get_plots <- function(dt, samples_analysed, sample_order = c('F2', 'F3', 'F4', '
                                            samples = samples, 
                                            reference_sample = reference_generation, 
                                            readSupportThreshold = readSupportThreshold)
+    site_overlaps <- get_overlaps(as(deletion_survival$indelID, 'GRanges'),
+                                  sites, ignore.strand = T, type = 'any')
+    
+    # make a heatmap
+    M <- as.matrix(data.frame(deletion_survival[,-1], 
+                              row.names = deletion_survival$indelID))
+    M[is.na(M)] <- 0
+    p1 <- pheatmap::pheatmap(M, cluster_cols = F, scale = 'row',
+                       show_rownames = F, cellwidth = 50,
+                       annotation_row = data.frame(site_overlaps * 1, 
+                                                   row.names = rownames(M)), 
+                       annotation_legend = FALSE,
+                       main = paste('Deletion frequency over generations\n', analysis))
     
     # convert table to boolean (NA means eliminated / not survived)
     deletion_survival <- cbind(deletion_survival[,1], 
                                apply(deletion_survival[,-1], 2, is.na))
     
-    site_overlaps <- get_overlaps(as(deletion_survival$indelID, 'GRanges'),
-                                  sites, ignore.strand = T, type = 'any')
     # categorize each deletion by combination of sites that the deletion overlaps
     categories <- apply(site_overlaps, 1, function(x)  
       paste(colnames(site_overlaps)[x], collapse = ':'))
@@ -148,11 +158,11 @@ get_plots <- function(dt, samples_analysed, sample_order = c('F2', 'F3', 'F4', '
     
     df <- melt(deletion_survival[category != 'other'], id.vars = 'category', measure.vars = names(samples))
     colnames(df) <- c('site_overlap', 'generation', 'eliminated')
-    p <- ggplot(df, aes(x = generation)) + 
+    p2 <- ggplot(df, aes(x = generation)) + 
       geom_bar(aes(fill = eliminated), position = 'fill') + 
       facet_grid(~ site_overlap) +
       scale_fill_brewer(type = 'qual', palette = 2)
-    return(p)
+    return(list('p1' = p1, 'p2' = p2))
   })
 }
 
@@ -165,7 +175,10 @@ plots <- get_plots(dt = deletions, samples_analysed = samples_analysed, referenc
 
 lapply(names(plots), function(analysis) {
   ggsave(filename = paste0("deletions_over_generations.",analysis,'.pdf'), 
-         plots[[analysis]], width = 12, height = 8, units = 'in')
+         plots[[analysis]][['p2']], width = 12, height = 8, units = 'in')
+  pdf(file = paste0("deletions_over_generations.heatmap.",analysis,'.pdf'))
+  print(plots[[analysis]][['p1']])
+  dev.off()
 })
 
 # Check how many reads with deletions in F2 are eliminated in later generations {.tabset}
