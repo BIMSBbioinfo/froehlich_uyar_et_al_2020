@@ -1,0 +1,6 @@
+
+usage: 
+/usr/bin/Rscript sgRNA_scores.R <settings.yaml that was used to run the pipeline> ./sgRNAscores.txt
+
+
+
