@@ -541,7 +541,17 @@ insertion_count_plots <- sapply(simplify = FALSE, USE.NAMES = TRUE, X = c(1e-04,
                                             subtitle = paste('Min Freq =',round(freqThreshold * 100, 3),'%')) + 
                                     theme(axis.title.y = element_blank())
                                   
-                                  p <- cowplot::plot_grid(p1, p2, labels = c('A', 'B'), ncol = 2)
+                                  dt3 <- dt[sampleMatchesGuide == TRUE, sum(value), by = c('sample', 'variable', 'treatment')]
+                                  p3 <- ggboxplot(dt3, x = "treatment", y = "V1",
+                                                  color = "treatment", palette = "jco",
+                                                  add = "jitter") + 
+                                    geom_text(stat="count", aes(label=paste('n =',..count..)), y = -max(dt3$V1)/50) +
+                                    stat_compare_means() +
+                                    ggtitle('# deletions\n by sgRNA & sample', 
+                                            subtitle = paste('Min Freq =',round(freqThreshold * 100, 3),'%')) + 
+                                    theme(axis.title.y = element_blank())
+                                  
+                                  p <- cowplot::plot_grid(p1, p2, p3, labels = c('A', 'B', 'C'), ncol = 3)
                                   print(p)
                                   return(p)
                                 })
