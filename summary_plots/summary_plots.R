@@ -232,7 +232,7 @@ deletions.melt$sampleMatchesGuide <- paste(deletions.melt$sample, deletions.melt
 #note: indels from untreated samples are compared to all cut sites, while treated samples are compared for a subset of those cut sites
 #      so, it might not be fair to compare these numbers at sample level. It should be more fair to compare at sgRNA level. 
 #summarize indel counts at cut sites by guide RNA, treatment condition using different frequency thresholds 
-pdf("deletion_counts_persample_perguide_plots.pdf")
+pdf("deletion_counts_persample_perguide_plots.pdf", width = 10, height = 8)
 deletion_counts_plots <- sapply(simplify = FALSE, USE.NAMES = TRUE, X = c(1e-04, 3e-05, 2e-05, 1e-05), 
                                 function(freqThreshold) {
                                   
@@ -506,7 +506,7 @@ insertions.melt$sampleMatchesGuide <- paste(insertions.melt$sample, insertions.m
 #note: indels from untreated samples are compared to all cut sites, while treated samples are compared for a subset of those cut sites
 #      so, it might not be fair to compare these numbers at sample level. It should be more fair to compare at sgRNA level. 
 #summarize indel counts at cut sites by guide RNA, treatment condition using different frequency thresholds 
-pdf("insertion_counts_persample_perguide_plots.pdf")
+pdf("insertion_counts_persample_perguide_plots.pdf", width = 10, height = 8)
 insertion_count_plots <- sapply(simplify = FALSE, USE.NAMES = TRUE, X = c(1e-04, 3e-05, 2e-05, 1e-05), 
                                 function(freqThreshold) {
                                   
