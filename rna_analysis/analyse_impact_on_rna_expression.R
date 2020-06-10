@@ -1,164 +1,136 @@
-library(ggplot2)
-library(data.table)
-library(rtracklayer)
-library(yaml)
-
 args = commandArgs(trailingOnly=TRUE)
 
 # settings.yaml file that was used to run the pipeline 
 settings_file <- args[1]
 
-# some necessary functions
-# Define some necessary functions
-getIndels <- function(pipeline_output_dir, samples) {
-  indels <- sapply(simplify = FALSE, samples, function(s) {
-    f <- file.path(pipeline_output_dir, 
-                   'indels',
-                   s, 
-                   paste0(s, ".indels.tsv"))
-    if(file.exists(f)) {
-      dt <- data.table::fread(f)
-      dt$sample <- s
-      return(dt)
-    } else {
-      stop("Can't open indels.tsv file for sample",s,
-           "at",f,"\n")
-    }})
-  return(indels)
-}
 #initial setup
+library(ggplot2)
+library(data.table)
+library(rtracklayer)
+library(yaml)
+library(ggpubr)
+
+source('../utility_functions.R')
+
 settings <- yaml::read_yaml(settings_file)
 sampleSheet <- data.table::fread(settings$sample_sheet)
 pipelineOutputDir <- settings$`output-dir`
 
-#define which samples to keep
-sampleSheet <- sampleSheet[sample_name %in% c("lin41_DNA_1516",
-                                              "lin41_RNApacbio_L1_1516",
-                                              "lin41_RNApacbio_L4_1516",
-                                              "gen_24C_F2_lin-41_sg26sg27",
-                                              "lin41_RNApacbio_L1_2627",
-                                              "lin41_RNApacbio_L4_2627",
-                                              "lin41_DNA_pool3",
-                                              "lin41_RNApacbio_L1_pool3",
-                                              "lin41_RNApacbio_L4_pool3",
-                                              "lin41_RNA_L1_1516_3end",
-                                              "lin41_RNA_L4_1516_3end")]
+settings <- yaml::read_yaml(settings_file)
+pipelineOutputDir <- settings$`output-dir`
 
 
-#define let-7 binding site coordinates on the genome  
-let7_sites <- GenomicRanges::makeGRangesFromDataFrame(
-  df = data.frame('seqname' = 'I', 
-                  'start' = c(9335255, 9335208), 
-                  'end' = c(9335262,9335214), 'strand' = '-', 
-                  row.names = c('let7_site1', 'let7_site2'))
-)
+# define plotting functions 
 
-
-makePlots <- function(indels, samples) {
-  dt <- indels[sample %in% samples & indelType == 'D']
-
+# define a function to get relative ratios of indels between combinations of L1, L4, and/or DNA samples
+# @param dt: data.table which can be a subset of indels object
+# @param samples: list of samples with names 'L1', 'L4', and/or 'dna'. 
+# The ratios are calculated in the order provided in the list object: 
+# e.g. L1, L4, dna will give log2(ratios) betwen L1/L4, L1/dna, and L4/dna
+# if the order is L4, dna, L1, then it gives, L4/dna, L4/L1, and L1/dna
+# @param readSupportThreshold: indels that are not supported by at least this many reads are removed
+get_relative_ratios <- function(dt, samples, readSupportThreshold = 0) {
+  dt <- dt[sample %in% unlist(samples)][ReadSupport >= readSupportThreshold]
   #now summarize indels by sample 
-  df <- data.table::dcast(dt, indelID ~ sample, value.var = 'freq')
+  dt <- data.table::dcast(dt, indelID ~ sample, value.var = 'freq')
   
   # remove the ones don't don't occur in all samples
-  df <- df[apply(df, 1 , function(x) sum(is.na(x)) == 0),]
-
-  df <- merge(df, unique(subset(dt, select = c('indelID', 'let7_site1', 'let7_site2', 'let7_either', 'let7_both'))), by = 'indelID')
+  dt <- dt[apply(dt, 1 , function(x) sum(is.na(x)) == 0),]
   
-  df$start <-  dt[match(df$indelID, dt$indelID),]$start
-  df$end <- dt[match(df$indelID, dt$indelID),]$end
-  df$dna_vs_L1 <- df[,get(samples[['dna']])] / df[,get(samples[['L1']])]
-  df$dna_vs_L4 <- df[,get(samples[['dna']])] / df[,get(samples[['L4']])]
-  df$L4_vs_L1 <- df[,get(samples[['L4']])] / df[,get(samples[['L1']])]
+  ratios <- do.call(cbind, apply(combn(names(samples), 2), 2, function(x) {
+    r <- data.table(log2(dt[,get(samples[[x[1]]])] / dt[,get(samples[[x[2]]])]))
+    colnames(r) <- paste0(x[1],'_vs_', x[2])
+    return(r)
+  }))
   
-  df$let7_overlap <- rep("no-overlap", nrow(df))
-  df[which(df$let7_site1),]$let7_overlap <- 'let7_site1'
-  df[which(df$let7_site2),]$let7_overlap <- 'let7_site2'
-  df[which(df$let7_both),]$let7_overlap <- 'let7_both'
-  
-  df_text <- df[,quantile(log2(L4_vs_L1))[[4]]+0.2,by = let7_overlap]
-  df_text$N <- table(df$let7_overlap)[df_text$let7_overlap]
-  
-  p1 <- ggplot2::ggplot(df, aes(x = df$let7_overlap, y = log2(L4_vs_L1))) + 
-    geom_boxplot(aes(fill = let7_overlap)) + 
-    #geom_text(stat = 'count', aes(label = paste("n = ", ..count..)), y = ceiling(min(log2(df$L4_vs_L1)))) + 
-    geom_text(data = df_text, 
-              aes(label = paste("n =",N), x = let7_overlap, y = V1)) + 
-    ggtitle(label = "Relative Deletion Frequency: L4 vs L1 RNA samples",  
-                            subtitle = paste("DNA:",samples[['dna']],
-                                             "\nRNA L1:",samples[['L1']],
-                                             "\nRNA L4:",samples[['L4']])) +
-    labs(x = 'Overlap status with let-7 binding sites') + 
-    theme_bw(base_size = 14)
-  
-  return(list(p1))
+  return(cbind(dt[,'indelID',drop = F], ratios))
 }
 
-# BEGIN analysis
+get_plots <- function(dt, samples_analysed, sample_order = c('L4', 'L1', 'dna'), 
+                      readSupportThreshold = 0) {
+  plots <- sapply(simplify = F, names(samples_analysed), function(analysis) {
+    message(analysis)
+    relative_ratios <- get_relative_ratios(dt = dt, 
+                                           samples = samples_analysed[[analysis]][sample_order], 
+                                           readSupportThreshold = readSupportThreshold)
+    
+    site_overlaps <- get_overlaps(as(relative_ratios$indelID, 'GRanges'), sites, 
+                                  ignore.strand = T, type = 'any')
+    # categorize each deletion by combination of sites that the deletion overlaps
+    categories <- apply(site_overlaps, 1, function(x)  
+      paste(colnames(site_overlaps)[x], collapse = ':'))
+    # this hierarchy of setting categories is important 
+    relative_ratios$category <- 'other'
+    site_count <- apply(site_overlaps, 1, function(x) sum(x))
+    relative_ratios[site_count == 0]$category <- 'no_overlap'
+    relative_ratios[site_count == 1]$category <- paste0(categories[site_count == 1], '_only')
+    # deletions that overlap both seed1 and seed2
+    both_seeds <- apply(site_overlaps[,c('LCS1_seed', 'LCS2_seed')], 1, function(x) sum(x) == 2)
+    relative_ratios[both_seeds]$category <- 'both_seeds'
+    
+    plot_names <- apply(combn(sample_order, 2), 2, function(x) {
+      paste0(x[1], '_vs_', x[2])
+    })
+    
+    p <-  sapply(simplify = F, plot_names, function(y) {
+      df <- relative_ratios[category != 'other']
+      ggboxplot(df, x = 'category', y = y,
+                palette = "jco",
+                add = "jitter", 
+                nrow = 1,  
+                add.params = list(size = 1, alpha = 0.5), outlier.shape = NA) +
+        labs(x = 'Whether the deletion overlaps the site') +
+        theme(axis.text.x = element_text(angle = 45, hjust = 1))
+    })
+    return(p)
+  })
+}
+
+#define functionally important sites in the targeted region  
+sites <- list('LCS1_seed' = 'chrI:9335255-9335263', 
+              'LCS2_seed' = 'chrI:9335208-9335214', 
+              'LCS1_3compl' = 'chrI:9335264-9335276',
+              'LCS2_3compl' = 'chrI:9335215-9335227')
+sites <- as(unlist(sites), 'GRanges')
+
+# define samples to be analysed (trio of dna, l1, and l4 )
+samples_analysed = list('lin41_pacbio_sg1516_2627_pool3' = list('dna' = 'lin41_DNA_sg1516_2627_pool3', 
+                                               'L1' = 'lin41_RNApacbio_L1_all',
+                                               'L4' = 'lin41_RNApacbio_L4_all'))
+
+# get sample sheet, subset by analysed samples 
+sampleSheet <- data.table::fread(settings$sample_sheet)
+sampleSheet <- sampleSheet[sample_name %in% unlist(samples_analysed)]
+
+genome <- Biostrings::readDNAStringSet(settings$reference_fasta, format = 'fasta')
+
+target <- as(sampleSheet$target_region[1], 'GRanges')
+
+# read indels
 indels <- do.call(rbind, getIndels(settings$`output-dir`, sampleSheet$sample_name))
 indels$freq <- indels$ReadSupport/indels$coverage
-indels$indelID <- paste(indels$seqname, indels$start, indels$end, indels$indelType, sep =  ':')
+indels$indelID <- paste0(indels$seqname, ':', indels$start, '-', indels$end)
 
-#find overlaps with let7 binding sites on lin-41.
+# remove indels that are not on target region
+indels <- indels[unique(queryHits(findOverlaps(as(indels, 'GRanges'), target, ignore.strand = T)))]
+indels$width <- abs(indels$start - indels$end + 1)
+# focus on deletions only 
+deletions <- indels[indelType == 'D']
 
-indels.gr <- GenomicRanges::makeGRangesFromDataFrame(indels)
-overlaps <- as.data.table(GenomicRanges::findOverlaps(indels.gr, let7_sites))
-indels <- cbind(indels, do.call(cbind, lapply(split(overlaps, overlaps$subjectHits), function(x) {
-  res <- data.frame(rep(FALSE, nrow(indels)))
-  colnames(res)[1] <- names(let7_sites)[unique(x$subjectHits)]
-  res[x$queryHits,1] <- TRUE
-  return(res)
-})))
-#find which ones overlap with either
-indels$let7_either <- indels$let7_site1 | indels$let7_site2
-#find which ones overlap with both
-indels$let7_both <- indels$let7_site1 & indels$let7_site2
+# only consider rna samples, filter for read support > 5
+plots <- get_plots(deletions, samples_analysed, sample_order = c('L4', 'L1'), readSupportThreshold = 5)
 
-
-sg1516_illumina <- makePlots(indels = indels,
-                             samples = list('dna' = 'lin41_DNA_1516',
-                                            'L1' = 'lin41_RNA_L1_1516_3end',
-                                            'L4' = 'lin41_RNA_L4_1516_3end'))
-
-pdf(file = 'sg1516_illumina.pdf')
-for(plot in sg1516_illumina) {
-  print(plot)
-}
-dev.off()
+# save plots
+lapply(names(plots), function(analysis) {
+  lapply(names(plots[[analysis]]), function(x) {
+    outfile <- paste(analysis, x, 'pdf', sep = '.')
+    p <- plots[[analysis]][[x]] + labs(title = analysis, subtitle = x)
+    ggsave(outfile, p, width = 8, height = 8, units = 'in')
+  }) 
+})
 
 
-sg1516_pacbio <- makePlots(indels = indels[indelType == 'D'], 
-                             samples = list('dna' = 'lin41_DNA_1516', 
-                                            'L1' = 'lin41_RNApacbio_L1_1516', 
-                                            'L4' = 'lin41_RNApacbio_L4_1516'))
-
-pdf(file = 'sg1516_pacbio.pdf')
-for(plot in sg1516_pacbio) {
-  print(plot)
-}
-dev.off()
 
 
-sgPool3_pacbio <- makePlots(indels = indels, 
-                           samples = list('dna' = 'lin41_DNA_pool3', 
-                                          'L1' = 'lin41_RNApacbio_L1_pool3', 
-                                          'L4' = 'lin41_RNApacbio_L4_pool3'))
-
-pdf(file = 'sgPool3_pacbio.pdf')
-for(plot in sgPool3_pacbio) {
-  print(plot)
-}
-dev.off()
-
-sg2627_pacbio <- makePlots(indels = indels, 
-                           samples = list('dna' = 'gen_24C_F2_lin-41_sg26sg27',
-                                          'L1' = 'lin41_RNApacbio_L1_2627',
-                                          'L4' = 'lin41_RNApacbio_L4_2627'))
-
-pdf(file = 'sg2627_pacbio.pdf')
-for(plot in sg2627_pacbio) {
-  print(plot)
-}
-dev.off()
 
 
