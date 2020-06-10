@@ -151,5 +151,37 @@ subset_bam_by_reads <- function(bamFile, read_names, outfile) {
                      param=ScanBamParam(what="qname")))
 }
 
+# targetRegion: GRanges object
+get_cons_scores <- function(filePath = '/data/local/buyar/collaborations/jonathan/data/conservation_scores/ce11.phyloP26way.bw', 
+                     targetRegion) {
+  
+  cons <- rtracklayer::import.bw(filePath)
+  # get conservation scores for the targeted region 
+  target_cons <- subsetByOverlaps(cons, targetRegion)
+  # cons may be missing scores at some positions, so we would like to get position specific scores for the target region
+  # even when they are not available
+  target_cons.dt <- merge(data.table('seqnames' = as.character(seqnames(target))[1], 
+                                     'start' = start(target):end(target), 
+                                     'end' = start(target):end(target)), 
+                          data.table('seqnames' = as.character(seqnames(target_cons))[1], 
+                                     'start' = start(target_cons), 
+                                     'score' = target_cons$score), 
+                          by = c('seqnames', 'start'), all = T) 
+  target_cons.dt[is.na(score)]$score <- 0
+  target_cons <- as(target_cons.dt, 'GRanges')
+  return(target_cons)
+}
 
+# gr1: GRanges object; query
+# gr2: GRanges object; subject
+# ...: additional arguments passed to findOverlaps function
+# for each interval in gr2, return a boolean vector of length(gr1) (true if there is overlap)
+# return: a data table of boolean values, nrow= length(gr1) ncol=length(gr2)
+get_overlaps <- function(gr1, gr2, ...) {
+  data.table(sapply(names(gr2), function(x) {
+    ov <- rep(FALSE, length(gr1))
+    ov[unique(subjectHits(findOverlaps(gr2[x], gr1, ...)))] <- TRUE
+    return(ov)
+  }))
+}
 
