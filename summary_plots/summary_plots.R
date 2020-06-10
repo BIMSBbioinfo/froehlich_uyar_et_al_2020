@@ -27,23 +27,6 @@ pipelineOutputDir <- settings$`output-dir`
 
 
 # Define some necessary functions
-getIndels <- function(pipeline_output_dir, samples) {
-  indels <- sapply(simplify = FALSE, samples, function(s) {
-    f <- file.path(pipeline_output_dir, 
-                   'indels',
-                   s, 
-                   paste0(s, ".indels.tsv"))
-    if(file.exists(f)) {
-      dt <- data.table::fread(f)
-      dt$sample <- s
-      return(dt)
-    } else {
-      stop("Can't open indels.tsv file for sample",s,
-           "at",f,"\n")
-    }})
-  return(indels)
-}
-
 # function to import insertedSequences.tsv files and do some modifications on the resulting table
 getInsertions <- function(pipeline_output_dir, samples) {
   insertions <- do.call(rbind, sapply(simplify = FALSE, samples, function(s) {
@@ -227,6 +210,31 @@ sample_guides <- unlist(lapply(names(sampleGuides), function(s) {
 }))
 
 deletions.melt$sampleMatchesGuide <- paste(deletions.melt$sample, deletions.melt$variable, sep = ":") %in% sample_guides
+
+# plot sgRNA efficiency vs deletion diversity 
+dt.sgrna <- indelStats[sampleMatchesGuide == TRUE][treatment == 'treated']
+# value == 1 means the deletion is at the cut site of the corresponding guide 
+dt.del <- deletions.melt[value == 1][sampleMatchesGuide == TRUE][treatment == 'treated'][ReadSupport > 5][,length(unique(name)),by = c('sample', 'variable')]
+colnames(dt.del)[2:3] <- c('sgRNA', 'unique_deletion_count_at_cutsite')
+p1 <- ggplot(merge(dt.sgrna, dt.del, by = c('sgRNA', 'sample')),
+       aes(x = unique_deletion_count_at_cutsite, y = scores)) + 
+  geom_point() + theme_bw(base_size = 14) + geom_smooth(method = 'lm') + 
+  labs(x = 'Unique Deletions per sgRNA', y = 'sgRNA efficiency %',
+       subtitle = paste('Read Support > 5, Deletion Freq > 1e-05, only treated samples'))
+ggsave(filename = 'sgRNA_efficiency_vs_deletion_diversity_at_cutsites.pdf', 
+       p1, width = 8, height = 8, units = 'in')
+# plot sgRNA count and number of unique deletions in a sample
+dt.sgrna_count <- data.table('sample' = names(sampleGuides), 'sgRNA_count' = lengths(sampleGuides))
+dt.del_count <-  deletions.melt[value == 1][sampleMatchesGuide == TRUE][treatment == 'treated'][ReadSupport > 5][freq > 1e-05][,length(unique(name)),by = 'sample']
+p2 <- ggplot(merge(dt.sgrna_count, dt.del_count, by = 'sample'), 
+       aes(x = V1, y = sgRNA_count)) + 
+  geom_point() +  geom_smooth(method = 'lm') +
+  labs(x = 'unique deletions per sample', y = 'sgRNA count used in sample',
+       subtitle = paste('Read Support > 5, Deletion Freq > 1e-05, only treated samples')) +
+  theme_bw(base_size = 14)
+ggsave(filename = 'sgRNA_count_vs_deletion_diversity_in_sample.pdf', 
+       p2, width = 8, height = 8, units = 'in')
+
 
 #summarize indel counts by sample and treatment condition
 #note: indels from untreated samples are compared to all cut sites, while treated samples are compared for a subset of those cut sites
