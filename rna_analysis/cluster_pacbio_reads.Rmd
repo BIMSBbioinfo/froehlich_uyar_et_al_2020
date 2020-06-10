@@ -1,11 +1,20 @@
 ---
 title: "Impact of deletions on RNA abundance"
-output: html_document
+author: Bora Uyar
+output: 
+  html_document:
+    toc: true
+    toc_float: true
+    number_sections: true
+    theme: united
+    code_folding: hide
 params: 
-  rna_L1_sample: 'lin41_RNApacbio_L1_pool3'
-  rna_L4_sample: 'lin41_RNApacbio_L4_pool3'
-  prefix: 'sgRNA_pool3'
+  rna_L1_sample: 'lin41_RNApacbio_L1_all'
+  rna_L4_sample: 'lin41_RNApacbio_L4_all'
+  prefix: 'cluster_pacbio_all'
 ---
+
+`r date()`
 
 ```{r setup}
 knitr::opts_chunk$set(echo = TRUE, fig.width = 8, fig.height = 8, message = FALSE, warning = F)
@@ -39,6 +48,7 @@ let7_sites <- GenomicRanges::makeGRangesFromDataFrame(
 )
 
 genome <- Biostrings::readDNAStringSet(settings$reference_fasta, format = 'fasta')
+target <- as(sampleSheet$target_region[1], 'GRanges')
 
 ```
 
@@ -83,8 +93,12 @@ rownames(M) <- c(mcols(aln_L1)$qname, mcols(aln_L4)$qname)
 
 require(Seurat)
 
-sc <- cluster_reads(t(M))
-saveRDS(sc, file = paste0(params$prefix, ".read_clusters.seurat.RDS"))
+if(!file.exists(paste0(params$prefix, ".read_clusters.seurat.RDS"))) {
+  sc <- cluster_reads(t(M))
+  saveRDS(sc, file = paste0(params$prefix, ".read_clusters.seurat.RDS"))
+} else {
+  sc <- readRDS(paste0(params$prefix, ".read_clusters.seurat.RDS"))
+}
 
 sc$let7_site1_deleted <- Biostrings::vcountPattern(let7_seqs$let7_site1, 
                                            subject = c(x1, x4), max.mismatch = 0) == 0
@@ -166,7 +180,6 @@ dummy <- lapply(unique(clusters$cl), function(x) {
                     read_names = clusters[stage == 'L4'][cl == x]$name, 
                     outfile = file.path(bamDir, paste0('L4.cl', x, '.bam')))
 })
-
 
 ```
 
