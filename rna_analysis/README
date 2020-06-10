@@ -1,0 +1,6 @@
+
+To cluster and compare lin-41 pacbio RNA reads:
+ > /usr/bin/Rscript cluster_pacbio_reads.R $dj/results_manuscript/settings.yaml lin41_RNApacbio_L1_all lin41_RNApacbio_L4_all cluster_pacbio_all
+
+To analyse impact of deletions in L1 vs L4 abundance
+> /usr/bin/Rscript analyse_impact_on_rna_expression.R $dj/results_manuscript/settings.yaml
