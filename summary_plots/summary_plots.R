@@ -11,6 +11,8 @@ args = commandArgs(trailingOnly=TRUE)
 
 # settings.yaml file that was used to run the pipeline 
 settings_file <- args[1]
+
+source('../utility_functions.R')
   
 #initial setup
 settings <- yaml::read_yaml(settings_file)
@@ -92,56 +94,56 @@ overlapCutSites <- function(indels, cutSites, extend = 5) {
 # remove some problematic samples 
 removedSamples <- c( 
   # remove any non-F2 samples
-  grep('gen_.*?_F[1345]', sampleSheet$sample_name), 
+  grep('gen_.*?_F[1345]', sampleSheet$sample_name, value = T), 
   #remove F2 samples at 16C
-  grep('gen_16C', sampleSheet$sample_name), 
+  grep('gen_16C', sampleSheet$sample_name, value = T), 
   #for the gen_plates experiments, keep only those at F2 
-  grep('^gen_plates.*plate[35]', sampleSheet$sample_name),
+  grep('^gen_plates.*plate[35]', sampleSheet$sample_name, value = T),
   
   ##remove phen*_24 
-  grep('phen.*_24$', sampleSheet$sample_name),
+  grep('phen.*_24$', sampleSheet$sample_name, value = T),
   
   ##remove ald_snb-1_ups_CDS2
-  grep('ups_CDS2', sampleSheet$sample_name),
+  grep('ups_CDS2', sampleSheet$sample_name, value = T),
   
   ##remove all RNA samples
-  grep('pacbio', sampleSheet$sample_name),
-  grep('middle', sampleSheet$sample_name), 
-  grep('_3end', sampleSheet$sample_name),
+  grep('pacbio', sampleSheet$sample_name, value = T),
+  grep('middle', sampleSheet$sample_name, value = T), 
+  grep('_3end', sampleSheet$sample_name, value = T),
   
   ##related to RNA experiment
-  grep('lin41_DNA', sampleSheet$sample_name),
+  grep('lin41_DNA', sampleSheet$sample_name, value = T),
   
   ##remove PCR replicates lin-41 pool3
-  grep('PCR2', sampleSheet$sample_name),
-  grep('PCR3', sampleSheet$sample_name),
+  grep('PCR2', sampleSheet$sample_name, value = T),
+  grep('PCR3', sampleSheet$sample_name, value = T),
   
   ##remove samples where alignment seems to be problematic (seen in N2), 
   ##and mut4&mut8 where it looks like problems with alignment or reference amplicon wrong.
-  grep('lin-41_CDS', sampleSheet$sample_name),
-  grep('egl-30', sampleSheet$sample_name),
-  grep('let-2_CDS', sampleSheet$sample_name),
-  grep('mut4', sampleSheet$sample_name),
-  grep('mut8', sampleSheet$sample_name),
+  grep('lin-41_CDS', sampleSheet$sample_name, value = T),
+  grep('egl-30', sampleSheet$sample_name, value = T),
+  grep('let-2_CDS', sampleSheet$sample_name, value = T),
+  grep('mut4', sampleSheet$sample_name, value = T),
+  grep('mut8', sampleSheet$sample_name, value = T),
   
   ##removed samples which were hand-picked for phenotypes and his-72 timecourse experiment 
-  grep('picked', sampleSheet$sample_name),
-  grep('timecourse', sampleSheet$sample_name),
+  grep('picked', sampleSheet$sample_name, value = T),
+  grep('timecourse', sampleSheet$sample_name, value = T),
   
   ##remove snb-1 "ctrl" strain (is a mutants strain and not N2)
-  grep('ctrl_strain', sampleSheet$sample_name),
+  grep('ctrl_strain', sampleSheet$sample_name, value = T),
   
   # remove samples with very high off-target alignments 
-  which(sampleSheet$target_name == 'par-2_CDS'), 
-  which(sampleSheet$target_name == 'rol-6_ups')
+  sampleSheet[sampleSheet$target_name %in% c('par-2_CDS', 
+                                             'rol-6_ups')]$sample_name
   )
 
 
 # remove selected samples from sample sheet
-sampleSheet <- sampleSheet[-unique(removedSamples),]
+sampleSheet <- sampleSheet[!sample_name %in% removedSamples,]
 
 # match samples to the actual sgRNA guides used for that sample
-sampleGuides <- lapply(sampleSheet$sample_name, function(s) {
+sampleGuides <- lapply(unique(sampleSheet$sample_name), function(s) {
   target <- sampleSheet[sampleSheet$sample_name == s,]$target_name
   sgRNAs <- unlist(strsplit(x = sampleSheet[sampleSheet$sample_name == s,]$sgRNA_ids, 
                             split = ':'))
@@ -150,19 +152,16 @@ sampleGuides <- lapply(sampleSheet$sample_name, function(s) {
   }
   return(sgRNAs)
 })
-names(sampleGuides) <- as.character(sampleSheet$sample_name)
+names(sampleGuides) <- as.character(unique(sampleSheet$sample_name))
 
 
-indelStats <- as.data.table(do.call(rbind, lapply(1:nrow(sampleSheet), function(i) {
-  sampleName <- sampleSheet[i, 'sample_name']
-  target <- sampleSheet[i, 'target_name']
-  
-  f <- file.path(pipelineOutputDir, 'indels', sampleName, paste0(sampleName, '.sgRNA_efficiency.tsv'))
+indelStats <- as.data.table(do.call(rbind, lapply(unique(sampleSheet$sample_name), function(s) {
+  f <- file.path(pipelineOutputDir, 'indels', s, paste0(s, '.sgRNA_efficiency.tsv'))
   if(file.exists(f)) {
     dt <- data.table::fread(f)
     return(dt)
   } else {
-    stop("Can't open sgRNA_efficiency.tsv file for sample ",sampleName,
+    stop("Can't open sgRNA_efficiency.tsv file for sample ",s,
             " at ",f,"\n")
   }
 })))
@@ -187,7 +186,7 @@ pdf("indel_efficiencies_at_cut_sites.pdf")
 ggplot(indelStats[sampleMatchesGuide == TRUE], aes(x = treatment, y = scores)) + 
   geom_boxplot(outlier.shape = NA) + 
   geom_text(stat="count", aes(label=paste('n =',..count..)), y = -1) +
-  geom_jitter(aes(color = treatment), width = 0.2, height = 0, show.legend = FALSE) + 
+  geom_jitter(aes(color = treatment), width = 0.1, height = 0, show.legend = FALSE) + 
   labs(title = paste('Indel efficiencies at cut sites'), 
        y = 'Indel Efficiency (%)')  + 
   theme_classic(base_size = 14) + scale_color_brewer(palette = 'Set1')
@@ -195,7 +194,7 @@ dev.off()
 
 # prepare indel data 
 
-indels <- do.call(rbind, getIndels(settings$`output-dir`, sampleSheet$sample_name))
+indels <- do.call(rbind, getIndels(settings$`output-dir`, unique(sampleSheet$sample_name)))
 indels$freq <- indels$ReadSupport/indels$coverage
 indels$indelID <- paste(indels$seqnames, indels$start, indels$end, indels$indelType, sep =  ':')
 indels$indelLength <- indels$end - indels$start + 1
@@ -291,7 +290,7 @@ dt$doubleCutEvent <- ifelse(dt$doubleCutEvent == TRUE, "double-cut", "single-cut
 # check length distribution of deletions at cut sites for treated samples
 ggplot2::ggplot(dt, 
                 aes(x = treatment, y = log10(indelLength))) + 
-  geom_violin() + 
+  geom_violin(scale = 'width') + 
   geom_jitter(aes(color = treatment), width = 0.2, alpha = 0.25) + 
   labs(title = paste('Length distribution of single-cut or double-cut deletions'), 
        y = 'log10 Deletion Length')  + 
@@ -432,18 +431,20 @@ plotDiversity <- function(diversity, title) {
   #sort by rowmeans
   M <- M[names(sort(apply(M, 1, mean), decreasing = T)),]
   # column top annotation
-  ha_top = HeatmapAnnotation("Mean\ndeletions\nper base" = anno_barplot(axis_side = 'left', 
-                                                                    axis = TRUE, 
-                                                                    x = colMeans(M), 
-                                                                    which = 'column'), 
-                         height = unit(3, "cm"), show_annotation_name = TRUE, 
-                         name = "Mean\ndeletions\nper base")
+  ha_top = HeatmapAnnotation("Mean\ndeletions\nper base" = anno_lines(x = colMeans(M), 
+                                                                      axis = TRUE, 
+                                                                      axis_param = 
+                                                                        list(side = 'left'), 
+                                                                      which = 'column'), 
+                         height = unit(3, "cm"), show_annotation_name = TRUE)
   d <- ncol(M)/2
   ha_bottom <- columnAnnotation(text = anno_text(c(-d, rep('', d-2), 0, rep('', d-1), d)))
   
   #define the  legend
-  col_fun = colorRamp2(c(0, max(M)), c("white", "blue"))
-
+  #col_fun = colorRamp2(breaks = c(0, max(M)),  c("white", "blue"))
+  col_fun = colorRamp2(breaks = seq(0, max(M), 1),  
+                       colors = colorRampPalette(c("white", "red"))(max(M)+1))
+                       
   ComplexHeatmap::Heatmap(M, col = col_fun,
                           column_title = title,
                           cluster_rows = FALSE, cluster_columns = FALSE, 
@@ -455,10 +456,20 @@ plotDiversity <- function(diversity, title) {
 }
 
 diversity_single <- get_diversity(guideSamples, 50, doubleCuts = FALSE)
+diversity_double <- get_diversity(guideSamples, 2000, doubleCuts = TRUE)
 diversity_all <- get_diversity(guideSamples, 2000)
 
 pdf("Deletion_diversity_around_cut_sites.pdf")
 plotDiversity(diversity_single, "Deletion Diversity +/- 50 bp of cut sites \nOnly Single Cuts")
+plotDiversity(diversity_double, "Deletion Diversity +/- 2000 bp of cut sites \nDouble Cuts")
+plotDiversity(diversity_all, "Deletion Diversity +/- 2000 bp of cut sites \n Single or Double Cuts")
+dev.off()
+
+svg("Deletion_diversity_around_cut_sites.single.svg", height = 9)
+plotDiversity(diversity_single, "Deletion Diversity +/- 50 bp of cut sites \nOnly Single Cuts")
+dev.off()
+
+svg("Deletion_diversity_around_cut_sites.all.svg", height = 9)
 plotDiversity(diversity_all, "Deletion Diversity +/- 2000 bp of cut sites \n Single or Double Cuts")
 dev.off()
 
@@ -557,8 +568,9 @@ pdf("Insertion_size_distribution.pdf")
 # check length distribution of deletions at cut sites for treated samples
 ggplot2::ggplot(insertions[atCutSite == TRUE][ReadSupport > 5 & freq > 10^-5], 
                 aes(x = treatment, y = insertionWidth)) + 
-  geom_jitter(aes(color = treatment), width = 0.05, alpha = 0.05) + 
-  geom_violin(fill = NA) + 
+  #geom_jitter(aes(color = treatment), width = 0.05, alpha = 0.05) + 
+  geom_jitter(aes(color = treatment), width = 0.2, alpha = 0.25) + 
+  geom_violin(scale = 'width', fill = NA) + 
   labs(title = paste('Length distribution of insertions'), 
        y = 'Insertion Length')  + 
   theme_classic(base_size = 14) + 
@@ -622,6 +634,7 @@ indel_ratios <- do.call(rbind, pbapply::pblapply(cl = cl, X = sampleSheet$sample
                                               param = Rsamtools::ScanBamParam(what=c("qname")))
     df <- classify_reads(aln = aln)
     df$sample <- s
+    df$read_count <- length(aln)
     return(df)
   } else {
     stop("Can't open bam file at",bamFile,"\n")
@@ -629,9 +642,9 @@ indel_ratios <- do.call(rbind, pbapply::pblapply(cl = cl, X = sampleSheet$sample
 }))
 parallel::stopCluster(cl)
 
-indel_ratios$order <- order(indel_ratios$single_del/indel_ratios$any_indel, decreasing = T)
+indel_ratios$order <- indel_ratios$single_del/indel_ratios$any_indel
 
-mdf <- melt(indel_ratios[,-1], id.vars = c('sample', 'order'))
+mdf <- melt(indel_ratios, id.vars = c('sample', 'order', 'any_indel'))
 
 # plot proportion of indels per sample
 pdf("proportion_of_indels_per_sample.pdf")
@@ -642,6 +655,14 @@ ggplot(data = mdf,
   labs(y = 'Indel Ratio') + 
   theme(axis.title.y = element_blank(), axis.text.y = element_text(size = 6)) + 
   coord_flip() 
+
+ggplot(data = mdf, aes(x = variable, y = value / any_indel)) + 
+  geom_boxplot(aes(fill = variable), outlier.shape = NA, show.legend = F) + 
+  geom_jitter(aes(color = variable), show.legend = F, width = 0.25,
+              height = 0) + 
+  labs(x = '', y = 'percent indels') + 
+  theme_bw(base_size = 14) + 
+  scale_y_continuous(labels = scales::percent)
 dev.off()
 
 
