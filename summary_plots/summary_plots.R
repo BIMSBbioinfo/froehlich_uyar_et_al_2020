@@ -629,8 +629,7 @@ classify_reads <- function(aln) {
 }
 
 # for each sample, read the bam file and classify reads based on cigar strings
-cl <- parallel::makeCluster(20)
-parallel::clusterExport(cl = cl, varlist = c('sampleSheet', 'settings', 'classify_reads'))
+cl <- parallel::makeForkCluster(50)
 indel_ratios <- do.call(rbind, pbapply::pblapply(cl = cl, X = sampleSheet$sample_name, 
                                                  FUN = function(s) {
   require(GenomicAlignments)
@@ -654,7 +653,8 @@ parallel::stopCluster(cl)
 
 indel_ratios$order <- indel_ratios$single_del/indel_ratios$any_indel
 
-mdf <- melt(indel_ratios, id.vars = c('sample', 'order', 'any_indel'))
+mdf <- melt(data.table(indel_ratios), id.vars = c('sample', 'order', 
+                                                  'any_indel', 'read_count'))
 
 # plot proportion of indels per sample
 pdf("proportion_of_indels_per_sample.pdf")
