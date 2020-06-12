@@ -107,8 +107,22 @@ get_profile <- function(reads_with_indels, clusters, region) {
   return(df)
 }
 
+umapPlot_Raster <- function(seu, group_by = 'seurat_clusters', split_by = NULL) {
+  require(ggrastr)
+  dt <- cbind(data.table(seu@reductions$umap@cell.embeddings), 
+              data.table(seu@meta.data))
+  p <- ggplot(dt, aes(x = UMAP_1, y = UMAP_2)) + 
+    geom_point_rast(aes_string(color = group_by), raster.dpi = 300, alpha = 0.1, 
+                    raster.width = 10, raster.height = 8) 
+  if(!is.null(split_by)) {
+    p <- p + facet_grid(as.formula(paste0('~ ', split_by)))  
+  }
+  p <- p  + theme_bw()
+  return(p)
+} 
+
 pdf(file = paste0(prefix, '.umap_plots.pdf'), width = 10, height = 8)
-print(DimPlot(sc, split.by = 'stage', label = T, label.size = 5 ) + 
+print(DimPlot(sc, split.by = 'stage', label = T, label.size = 5) + 
   labs(title = 'Comparison of read clusters by stage'))
 print(DimPlot(sc, group.by = 'let7_site1_deleted' ) + 
   labs(title = 'let7_site1_deleted'))
@@ -117,6 +131,20 @@ print(DimPlot(sc, group.by = 'let7_site2_deleted' ) +
 print(DimPlot(sc, group.by = 'both_deleted' ) +
   labs(title = 'both_sites_deleted'))
 dev.off()
+
+# also save rastered dimplots
+ggsave(paste0(prefix,'.umap.compare_stages.pdf'), 
+       umapPlot_Raster(sc, group_by = 'seurat_clusters', split_by = 'stage') + 
+         labs(title = 'Comparison of read clusters by stage'), width = 10, height = 8)
+ggsave(paste0(prefix,'.umap.lcs1_deleted.pdf'), 
+       umapPlot_Raster(sc, group_by = 'let7_site1_deleted') + 
+         labs(title = 'let7_site1_deleted'), width = 10, height = 8)
+ggsave(paste0(prefix,'.umap.lcs2_deleted.pdf'), 
+       umapPlot_Raster(sc, group_by = 'let7_site2_deleted') + 
+         labs(title = 'let7_site2_deleted'), width = 10, height = 8)
+ggsave(paste0(prefix,'.umap.both_deleted.pdf'), 
+       umapPlot_Raster(sc, group_by = 'both_deleted') + 
+         labs(title = 'both_sites_deleted'), width = 10, height = 8)
 
 # Visualize deletion profiles of each cluster
 reads_with_indels <- rbind(reads_with_indels_L1, reads_with_indels_L4)
