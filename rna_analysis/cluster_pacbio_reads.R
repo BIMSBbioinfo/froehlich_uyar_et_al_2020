@@ -5,6 +5,7 @@ suppressMessages(suppressWarnings(library(yaml)))
 suppressMessages(suppressWarnings(library(ggrepel)))
 suppressMessages(suppressWarnings(library(GenomicAlignments)))
 suppressMessages(suppressWarnings(library(Seurat)))
+suppressMessages(suppressWarnings(library(ggrastr)))
 
 args <- commandArgs(trailingOnly = TRUE)
 
