@@ -1,4 +1,0 @@
-
-usage:
-> /usr/bin/Rscript deletions_impact_on_fitness.R < path to settings.yaml > analysis_table.tsv
-

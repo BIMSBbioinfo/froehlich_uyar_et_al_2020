@@ -1,8 +1,0 @@
-
-usage: 
-# To get correlation between sgrna efficiencies and external scores calculated for the designed guides 
-/usr/bin/Rscript sgRNA_scores.R <settings.yaml that was used to run the pipeline> ./sgRNAscores.txt
-
-# To get various summary plots from the processed pipeline output
-/usr/bin/Rscript summary_plots.R <settings.yaml that was used to run the pipeline>
-
