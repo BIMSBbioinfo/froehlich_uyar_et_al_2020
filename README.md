@@ -19,6 +19,8 @@ with the output files and folders can be downloaded from [here](https://bimsbsta
 # How to reproduce the figures in the manuscript
 
 ## Preparing the inputs
+
+The necessary pipeline outputs needs to be downloaded from [here](https://bimsbstatic.mdc-berlin.de/akalin/buyar/froehlich_uyar_et_al_2020/crispr_dart_pipeline_output.tgz).
 The downloaded zipped folder needs to be unzipped and the `settings.yaml` file needs to be modified according to the location of the file paths to 
 the various input files. In order to reproduce the figures, the only fields that need to be modified in the `settings.yaml` file are:
 
