@@ -1,11 +1,11 @@
 The purpose of this repository is to provide the scripts that are used to produce the figures 
-for the manuscript by Froehlich et al, 2020. 
+for the manuscript by Froehlich & Uyar et al, 2020. 
 
 See the Biorxiv Preprint here:
 
 # CRISPR-DART pipeline results
 
-The targeted sequencing data of CRISPR-Cas9 treated and control samples were processed using the [CRIPSR-DART pipeline](https://github.com/BIMSBbioinfo/crispr_dart). 
+The targeted sequencing data of CRISPR-Cas9 treated and control samples were processed using the [crispr-DART pipeline](https://github.com/BIMSBbioinfo/crispr_dart). 
 
 ## Pipeline output
 
