@@ -1,1 +1,2 @@
-make_figures.old.R
+rna_analysis/cluster_pacbio_all.read_clusters.seurat.RDS
+rna_analysis/cluster_pacbio_all_bam/
