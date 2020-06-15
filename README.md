@@ -5,7 +5,7 @@ See the Biorxiv Preprint here:
 
 # CRISPR-DART pipeline results
 
-The targeted sequencing data of CRISPR-Cas9 treated and control samples were processed using the [CRIPSR-DART pipeline](https://github.com/BIMSBbioinfo/pigx_crispr). 
+The targeted sequencing data of CRISPR-Cas9 treated and control samples were processed using the [CRIPSR-DART pipeline](https://github.com/BIMSBbioinfo/crispr_dart). 
 
 The input files to run the pipeline such as `settings.yaml`, `sample_sheet.csv`, `cutsites.bed`, and `comparisons.tsv` along 
 with the output files and folders can be downloaded from [here](link to bimsbstatic). 
