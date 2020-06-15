@@ -83,12 +83,6 @@ removedSamples <- c(
   #for the gen_plates experiments, keep only those at F2 
   grep('^gen_plates.*plate[35]', sampleSheet$sample_name, value = T),
   
-  ##remove phen*_24 
-  grep('phen.*_24$', sampleSheet$sample_name, value = T),
-  
-  ##remove ald_snb-1_ups_CDS2
-  grep('ups_CDS2', sampleSheet$sample_name, value = T),
-  
   ##remove all RNA samples
   grep('pacbio', sampleSheet$sample_name, value = T),
   grep('middle', sampleSheet$sample_name, value = T), 
@@ -101,24 +95,12 @@ removedSamples <- c(
   grep('PCR2', sampleSheet$sample_name, value = T),
   grep('PCR3', sampleSheet$sample_name, value = T),
   
-  ##remove samples where alignment seems to be problematic (seen in N2), 
-  ##and mut4&mut8 where it looks like problems with alignment or reference amplicon wrong.
-  grep('lin-41_CDS', sampleSheet$sample_name, value = T),
-  grep('egl-30', sampleSheet$sample_name, value = T),
-  grep('let-2_CDS', sampleSheet$sample_name, value = T),
-  grep('mut4', sampleSheet$sample_name, value = T),
-  grep('mut8', sampleSheet$sample_name, value = T),
-  
   ##removed samples which were hand-picked for phenotypes and his-72 timecourse experiment 
   grep('picked', sampleSheet$sample_name, value = T),
   grep('timecourse', sampleSheet$sample_name, value = T),
   
   ##remove snb-1 "ctrl" strain (is a mutants strain and not N2)
-  grep('ctrl_strain', sampleSheet$sample_name, value = T),
-  
-  # remove samples with very high off-target alignments 
-  sampleSheet[sampleSheet$target_name %in% c('par-2_CDS', 
-                                             'rol-6_ups')]$sample_name
+  grep('ctrl_strain', sampleSheet$sample_name, value = T)
   )
 
 
