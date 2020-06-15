@@ -25,11 +25,9 @@ The downloaded compressed folder needs to be uncompressed and the `settings.yaml
 the various input files. In order to reproduce the figures, the only fields that need to be modified in the `settings.yaml` file are:
 
 - sample_sheet: /path/to/sample_sheet.csv
-- cutsites: /path/to/cut_sites.bed
+- cutsites: /path/to/cutsites.bed
 - reference_fasta: /path/to/ce11.fa
 - output-dir: /path/to/output
-- comparisonsFile: /path/to/comparisons.tsv
-- Rscript: /path/to/Rscript 
  
 ## Scripts in this repository
 
