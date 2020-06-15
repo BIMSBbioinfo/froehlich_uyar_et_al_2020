@@ -5,7 +5,7 @@ See the Biorxiv Preprint here:
 
 # crispr-DART pipeline results
 
-The targeted sequencing data of CRISPR/Cas9 treated and control samples were processed using the [crispr-DART pipeline](https://github.com/BIMSBbioinfo/crispr_dart). 
+The targeted sequencing data of CRISPR-Cas9 treated and control samples were processed using the [crispr-DART pipeline](https://github.com/BIMSBbioinfo/crispr_dart). 
 
 ## Pipeline output
 
