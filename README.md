@@ -7,9 +7,21 @@ See the Biorxiv Preprint here:
 
 The targeted sequencing data of CRISPR-Cas9 treated and control samples were processed using the [CRIPSR-DART pipeline](https://github.com/BIMSBbioinfo/crispr_dart). 
 
-The input files to run the pipeline such as `settings.yaml`, `sample_sheet.csv`, `cutsites.bed`, and `comparisons.tsv` along 
-with the output files and folders can be downloaded from [here](link to bimsbstatic). 
+The reports output of the pipeline from this analysis can be browsed [here](https://bimsbstatic.mdc-berlin.de/akalin/buyar/froehlich_uyar_et_al_2020/reports/index.html): 
 
+The input files to run the pipeline such as `settings.yaml`, `sample_sheet.csv`, `cutsites.bed`, and `comparisons.tsv` along 
+with the output files and folders can be downloaded from [here](https://bimsbstatic.mdc-berlin.de/akalin/buyar/froehlich_uyar_et_al_2020/crispr_dart_pipeline_output.tgz).
+
+The downloaded zipped folder needs to be unzipped and the `settings.yaml` file needs to be modified according to the location of the file paths to 
+the various input files. In order to reproduce the figures, the only fields that need to be modified in the `settings.yaml` file are:
+
+- sample_sheet: /path/to/sample_sheet.csv
+- cutsites: /path/to/cut_sites.bed
+- reference_fasta: /path/to/ce11.fa
+- output-dir: /path/to/output
+- comparisonsFile: /path/to/comparisons.tsv
+- Rscript: /path/to/Rscript 
+ 
 # Scripts in this repository
 
 The scripts in this repository take as input the `settings.yaml` file which contains all the necessary links to other important
@@ -22,21 +34,26 @@ raw versions of the figures printed by these scripts in this repository.
 ## Summary plots
 
 - To get correlation between sgrna efficiencies and external scores calculated for the designed guides
-/usr/bin/Rscript scripts/sgRNA_scores.R <settings.yaml that was used to run the pipeline> ./data/sgRNAscores.txt
+> cd summary_plots
+> /usr/bin/Rscript ../scripts/sgRNA_scores.R */path/to/settings.yaml* ../data/sgRNAscores.txt
 
 - To get various summary plots from the processed pipeline output
-/usr/bin/Rscript scripts/summary_plots.R <settings.yaml that was used to run the pipeline>
+> cd summary_plots
+> /usr/bin/Rscript ../scripts/summary_plots.R */path/to/settings.yaml* 
 
 ## lin-41 RNA analysis
 
 - To cluster and compare lin-41 pacbio RNA reads:
-> /usr/bin/Rscript scripts/cluster_pacbio_reads.R <path to pipeline settings.yaml> lin41_RNApacbio_L1_all lin41_RNApacbio_L4_all cluster_pacbio_all
+> cd rna_analysis
+> /usr/bin/Rscript ../scripts/cluster_pacbio_reads.R */path/to/settings.yaml* lin41_RNApacbio_L1_all lin41_RNApacbio_L4_all cluster_pacbio_all
 
 - To analyse impact of deletions in L1 vs L4 abundance
-> /usr/bin/Rscript scripts/analyse_impact_on_rna_expression.R <path to pipeline settings.yaml>
+> cd rna_analysis
+> /usr/bin/Rscript ../scripts/analyse_impact_on_rna_expression.R */path/to/settings.yaml*
 
 ## Fitness/generations analysis
 
 - To make the plots about how deletion or reads with deletions get selected agains over generations from F2 to F5. 
-> /usr/bin/Rscript scripts/deletions_impact_on_fitness.R <path to pipeline settings.yaml>  data/analysis_table.tsv
+> cd generations_analysis
+> /usr/bin/Rscript ../scripts/deletions_impact_on_fitness.R */path/to/settings.yaml*  ../data/analysis_table.tsv
 
