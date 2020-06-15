@@ -3,9 +3,9 @@ for the manuscript by Froehlich & Uyar et al, 2020.
 
 See the Biorxiv Preprint here:
 
-# CRISPR-DART pipeline results
+# crispr-DART pipeline results
 
-The targeted sequencing data of CRISPR-Cas9 treated and control samples were processed using the [crispr-DART pipeline](https://github.com/BIMSBbioinfo/crispr_dart). 
+The targeted sequencing data of CRISPR/Cas9 treated and control samples were processed using the [crispr-DART pipeline](https://github.com/BIMSBbioinfo/crispr_dart). 
 
 ## Pipeline output
 
