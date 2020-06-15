@@ -66,3 +66,4 @@ raw versions of the figures printed by these scripts in this repository.
 > cd generations_analysis
 > /usr/bin/Rscript ../scripts/deletions_impact_on_fitness.R */path/to/settings.yaml*  ../data/analysis_table.tsv
 
+
