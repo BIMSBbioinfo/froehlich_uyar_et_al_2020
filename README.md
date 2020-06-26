@@ -3,6 +3,10 @@ for the manuscript by Froehlich & Uyar et al, 2020.
 
 See the Biorxiv Preprint here:
 
+# Raw sequencing reads and sample sheet
+
+The raw read data (including both Illumina and Pacbio sequenced samples) can be downloaded from [here](https://bimsbstatic.mdc-berlin.de/akalin/buyar/froehlich_uyar_et_al_2020/reads.tgz) and the sample sheet which describes the experimental set up can be downloaded from [here](//bimsbstatic.mdc-berlin.de/akalin/buyar/froehlich_uyar_et_al_2020/sample_sheet.csv). 
+
 # crispr-DART pipeline results
 
 The targeted sequencing data of CRISPR-Cas9 treated and control samples were processed using the [crispr-DART pipeline](https://github.com/BIMSBbioinfo/crispr_dart). 
