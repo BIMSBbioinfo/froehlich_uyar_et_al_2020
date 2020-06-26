@@ -85,5 +85,7 @@ raw versions of the figures printed by these scripts in this repository.
 #### Templated insertions analysis
 
 - To plot the profile of kmers from the inserted sequence present around the cut site
+```
 > cd kmer_analysis
 > /usr/bin/Rscript /path/to/scripts/insertion_kmers_matching_surrounding_sequence.R */path/to/settings.yaml*  *sample* *[sample2 ... sampleN]*
+```
