@@ -42,19 +42,20 @@ raw versions of the figures printed by these scripts in this repository.
 
 ### How to run the scripts
 
-#### Summary plots
+#### Summary plots (sgRNA efficiencies, indel proportions/sizes/spread, genotype diversity...)
 
-- To get correlation between sgrna efficiencies and external scores calculated for the designed guides
-```
-> cd summary_plots
-> /usr/bin/Rscript ../scripts/sgRNA_scores.R */path/to/settings.yaml* ../data/sgRNAscores.txt
-```
-
-- To get various summary plots from the processed pipeline output
+- To get various summary plots from the processed pipeline output (Figure 2, Supplementary Fig. 5)
 
 ```
 > cd summary_plots
 > /usr/bin/Rscript ../scripts/summary_plots.R */path/to/settings.yaml* 
+```
+
+- To get correlation between sgrna efficiencies and external scores calculated for the designed guides (Supplementary Fig. 3)
+
+```
+> cd summary_plots
+> /usr/bin/Rscript ../scripts/sgRNA_scores.R */path/to/settings.yaml* ../data/sgRNAscores.txt
 ```
 
 #### lin-41 RNA analysis
@@ -84,7 +85,7 @@ raw versions of the figures printed by these scripts in this repository.
 
 #### Templated insertions analysis
 
-- To plot the profile of kmers from the inserted sequence present around the cut site
+- To plot the profile of kmers from the inserted sequence present around the cut site (Supplementary Fig. 4)
 ```
 > cd kmer_analysis
 > /usr/bin/Rscript /path/to/scripts/insertion_kmers_matching_surrounding_sequence.R */path/to/settings.yaml*  *sample* *[sample2 ... sampleN]*
