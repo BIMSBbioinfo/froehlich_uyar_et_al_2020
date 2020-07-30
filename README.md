@@ -1,7 +1,7 @@
 The purpose of this repository is to provide the scripts that are used to produce the figures 
 for the manuscript by Froehlich & Uyar et al, 2020. 
 
-See the Biorxiv Preprint here:
+See the Biorxiv Preprint [here](https://www.biorxiv.org/content/10.1101/2020.07.28.224998v2.full.pdf).
 
 # Raw sequencing reads and sample sheet
 
