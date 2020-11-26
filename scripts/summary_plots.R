@@ -184,9 +184,9 @@ indels <- do.call(rbind, lapply(unique(indels$sample), function(sampleName) {
 
 deletions <- indels[indelType == 'D']
 
-deletions.melt <- reshape2::melt(deletions[atCutSite == TRUE], 
+deletions.melt <- data.table(reshape2::melt(deletions[atCutSite == TRUE], 
                               id.vars = which(grepl(pattern = 'sg[0-9]+', colnames(deletions)) == FALSE), 
-                              measure.vars = which(grepl(pattern = 'sg[0-9]+', colnames(deletions)) == TRUE))
+                              measure.vars = which(grepl(pattern = 'sg[0-9]+', colnames(deletions)) == TRUE)))
 sample_guides <- unlist(lapply(names(sampleGuides), function(s) {
   paste(s, sampleGuides[[s]], sep = ":")
 }))
