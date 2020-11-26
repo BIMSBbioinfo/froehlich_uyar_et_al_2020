@@ -16,10 +16,6 @@ settings <- yaml::read_yaml(settings_file)
 sampleSheet <- data.table::fread(settings$sample_sheet)
 pipelineOutputDir <- settings$`output-dir`
 
-settings <- yaml::read_yaml(settings_file)
-pipelineOutputDir <- settings$`output-dir`
-
-
 # define plotting functions 
 
 # define a function to get relative ratios of indels between combinations of L1, L4, and/or DNA samples
@@ -62,7 +58,7 @@ get_plots <- function(dt, samples_analysed, sample_order = c('L4', 'L1', 'dna'),
     # this hierarchy of setting categories is important 
     relative_ratios$category <- 'other'
     site_count <- apply(site_overlaps, 1, function(x) sum(x))
-    relative_ratios[site_count == 0]$category <- 'no_overlap'
+    relative_ratios[site_count == 0]$category <- 'none'
     relative_ratios[site_count == 1]$category <- paste0(categories[site_count == 1], '_only')
     # deletions that overlap both seed1 and seed2
     both_seeds <- apply(site_overlaps[,c('LCS1_seed', 'LCS2_seed')], 1, function(x) sum(x) == 2)
@@ -74,13 +70,20 @@ get_plots <- function(dt, samples_analysed, sample_order = c('L4', 'L1', 'dna'),
     
     p <-  sapply(simplify = F, plot_names, function(y) {
       df <- relative_ratios[category != 'other']
+      ggplot2::theme_set(ggpubr::theme_pubclean())
       ggboxplot(df, x = 'category', y = y,
                 palette = "jco",
                 add = "jitter", 
                 nrow = 1,  
                 add.params = list(size = 1, alpha = 0.5), outlier.shape = NA) +
         labs(x = 'Whether the deletion overlaps the site') +
-        theme(axis.text.x = element_text(angle = 45, hjust = 1))
+        theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
+        stat_compare_means(method = 'wilcox.test', method.args = list('alternative' = 'greater'),
+                           comparisons = list(c('both_seeds', 'none'),
+                                              c('LCS2_seed_only', 'none'), 
+                                              c('LCS2_3compl_only', 'none'),
+                                              c('LCS1_seed_only', 'none'), 
+                                              c('LCS1_3compl_only', 'none')))
     })
     return(p)
   })
