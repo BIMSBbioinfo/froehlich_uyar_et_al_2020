@@ -432,35 +432,36 @@ plotDiversity <- function(diversity, title) {
   
   #define the  legend
   #col_fun = colorRamp2(breaks = c(0, max(M)),  c("white", "blue"))
-  col_fun = colorRamp2(breaks = seq(0, max(M), 1),  
-                       colors = colorRampPalette(c("white", "red"))(max(M)+1))
+  col_fun = colorRamp2(breaks = seq(0, ceiling(max(M)), 1),  
+                       colors = colorRampPalette(c("white", "red"))(ceiling(max(M))+1))
                        
   ComplexHeatmap::Heatmap(M, col = col_fun,
                           column_title = title,
                           cluster_rows = FALSE, cluster_columns = FALSE, 
-                          row_names_side = 'left',
+                          #row_names_side = 'left',
+                          show_row_names = FALSE,
                           top_annotation = ha_top,  
                           bottom_annotation = ha_bottom, 
                           name = 'Deletions\nPer Base', 
                           row_names_gp = gpar(fontsize = 5))
 }
 
-diversity_single <- get_diversity(guideSamples, 50, doubleCuts = FALSE)
-diversity_double <- get_diversity(guideSamples, 2000, doubleCuts = TRUE)
-diversity_all <- get_diversity(guideSamples, 2000)
+diversity_single <- get_diversity(guideSamples, 25, doubleCuts = FALSE)
+diversity_double <- get_diversity(guideSamples, 1000, doubleCuts = TRUE)
+diversity_all <- get_diversity(guideSamples, 1000)
 
 pdf("Deletion_diversity_around_cut_sites.pdf")
-plotDiversity(diversity_single, "Deletion Diversity +/- 50 bp of cut sites \nOnly Single Cuts")
-plotDiversity(diversity_double, "Deletion Diversity +/- 2000 bp of cut sites \nDouble Cuts")
-plotDiversity(diversity_all, "Deletion Diversity +/- 2000 bp of cut sites \n Single or Double Cuts")
+plotDiversity(diversity_single, "Deletion Diversity +/- 25 bp of cut sites \nOnly Single Cuts")
+plotDiversity(diversity_double, "Deletion Diversity +/- 1000 bp of cut sites \nDouble Cuts")
+plotDiversity(diversity_all, "Deletion Diversity +/- 1000 bp of cut sites \n Single or Double Cuts")
 dev.off()
 
 svg("Deletion_diversity_around_cut_sites.single.svg", height = 9)
-plotDiversity(diversity_single, "Deletion Diversity +/- 50 bp of cut sites \nOnly Single Cuts")
+plotDiversity(diversity_single, "Deletion Diversity +/- 25 bp of cut sites \nOnly Single Cuts")
 dev.off()
 
 svg("Deletion_diversity_around_cut_sites.all.svg", height = 9)
-plotDiversity(diversity_all, "Deletion Diversity +/- 2000 bp of cut sites \n Single or Double Cuts")
+plotDiversity(diversity_all, "Deletion Diversity +/- 1000 bp of cut sites \n Single or Double Cuts")
 dev.off()
 
 
