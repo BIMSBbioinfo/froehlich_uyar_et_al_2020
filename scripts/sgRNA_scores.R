@@ -11,6 +11,8 @@ library(circlize)
 
 args = commandArgs(trailingOnly=TRUE)
 
+ggplot2::theme_set(theme_pubclean())
+
 # settings.yaml file that was used to run the pipeline 
 settings_file <- args[1]
 sgrna_score_file <- args[2]
@@ -107,6 +109,51 @@ p <- cowplot::plot_grid(plotlist = plots, ncol = 4)
 ggsave(filename = 'sgrna_scores.boolean.pdf', plot = p, width = 10, height = 8, units = 'in')
 
 dt <- merge(sgrna_stats, sgrna_scores_numeric, by = 'sgRNA')
-plots <- plot_scores(dt, 'numeric')
+dt[is.na(percent_in_injection)]$percent_in_injection <- mean(dt$percent_in_injection, na.rm = T)
+
+plots <- plot_scores(dt[sgrna_efficiency >= 5], 'numeric')
 p <- cowplot::plot_grid(plotlist = plots, ncol = 4)
 ggsave(filename = 'sgrna_scores.numerical.pdf', plot = p, width = 10, height = 8, units = 'in')
+
+
+sgRNA_scores <- merge(cbind(sgrna_scores_boolean[,1], 
+                            apply(sgrna_scores_boolean[,-1], 2, function(x) {as.factor(as.numeric(x))})), 
+                      sgrna_scores_numeric, by = 'sgRNA')
+
+dt <- merge(sgrna_stats, sgRNA_scores, by = 'sgRNA')
+
+df <- data.frame(dt[,-1], row.names = dt$sgRNA)
+
+# remove lethal gene features # discuss with jj # predictions are driven by these features
+# df <- df[,grep('lethal', colnames(df), invert = T)]
+
+# one variable has a missing value, just impute that
+fit <- ranger::ranger(sgrna_efficiency ~ ., df, num.trees = 1000, importance = 'permutation')
+
+imp <- ranger::importance(fit)
+
+ggplot(data.frame('importance' = imp, 'variable' = names(imp)), aes(x = reorder(variable, importance), y = importance)) +
+  geom_bar(stat = 'identity') + coord_flip()
+
+ggpubr::ggscatter(data.frame('pred' = ranger::predictions(fit, df[,-1]), 'actual' = df$sgrna_efficiency), 
+                  x = 'actual', y = 'pred', add = 'reg.line', cor.coef = T, cor.coef.coord = c(15, 10), 
+                  cor.coef.size = 6)
+
+# pick top variables
+top <- names(sort(imp, decreasing = T)[1:5])
+
+fit2 <- ranger::ranger(sgrna_efficiency ~ ., subset(df, select = c('sgrna_efficiency', top)), 
+                       num.trees = 1000, importance = 'permutation')
+
+imp2 <- ranger::importance(fit2)
+ggplot(data.frame('importance' = imp2, 'variable' = names(imp2)), 
+       aes(x = reorder(variable, importance), y = importance)) +
+  geom_bar(stat = 'identity') + coord_flip()
+
+ggpubr::ggscatter(data.frame('pred' = ranger::predictions(fit2, df[,-1]), 'actual' = df$sgrna_efficiency), 
+                  x = 'actual', y = 'pred', add = 'reg.line', cor.coef = T, cor.coef.coord = c(15, 10), 
+                  cor.coef.size = 6)
+
+# TODO: split test/train and report predictions 
+# IDEA: if we split sgrna efficiency >5 or <5 then we see some scores are predictive
+
