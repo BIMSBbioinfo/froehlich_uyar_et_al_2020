@@ -484,9 +484,9 @@ insertions$treatment <- ifelse(sampleSheet[match(insertions$sample, sampleSheet$
 
 insertions <- cbind(insertions, overlapCutSites(indels = insertions, cutSites = cutSites, extend = 5))
 
-insertions.melt <- reshape2::melt(insertions[atCutSite == TRUE], 
+insertions.melt <- data.table(reshape2::melt(insertions[atCutSite == TRUE], 
                                   id.vars = which(grepl(pattern = 'sg[0-9]+', colnames(insertions)) == FALSE), 
-                                  measure.vars = which(grepl(pattern = 'sg[0-9]+', colnames(insertions)) == TRUE))
+                                  measure.vars = which(grepl(pattern = 'sg[0-9]+', colnames(insertions)) == TRUE)))
 #remove the amplicon names from the variable field - TODO: update sampleGuides sgRNA ids to account for this 
 insertions.melt$variable <- gsub("^.+?:", '', insertions.melt$variable)
 
