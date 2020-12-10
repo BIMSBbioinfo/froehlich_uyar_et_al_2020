@@ -11,14 +11,43 @@ library(circlize)
 
 args = commandArgs(trailingOnly=TRUE)
 
-ggplot2::theme_set(theme_pubclean())
 
 # settings.yaml file that was used to run the pipeline 
 settings_file <- args[1]
 sgrna_score_file <- args[2]
 settings <- yaml::read_yaml(settings_file)
 
+ggplot2::theme_set(theme_pubclean())
+# exclude some artifically created samples (e.g. by merging multiple samples into one file)
+              
 sampleSheet <- data.table::fread(settings$sample_sheet)
+excluded <- c(
+                # remove samples artifically created by merging multiple treated samples
+                grep('lin-41.sg15sg16_sg26sg27_sgPool', sampleSheet$sample_name, value = T),
+                # remove any non-F2 samples
+                grep('gen_.*?_F[1345]', sampleSheet$sample_name, value = T), 
+                #remove F2 samples at 16C
+                grep('gen_16C', sampleSheet$sample_name, value = T), 
+                #for the gen_plates experiments, keep only those at F2 
+                grep('^gen_plates.*plate[35]', sampleSheet$sample_name, value = T),
+                
+                ##remove all RNA samples
+                grep('pacbio', sampleSheet$sample_name, value = T),
+                grep('middle', sampleSheet$sample_name, value = T), 
+                grep('_3end', sampleSheet$sample_name, value = T),
+                
+                ##related to RNA experiment
+                grep('lin41_DNA', sampleSheet$sample_name, value = T),
+                
+                ##remove PCR replicates lin-41 pool3
+                grep('PCR2', sampleSheet$sample_name, value = T),
+                grep('PCR3', sampleSheet$sample_name, value = T),
+                
+                ##removed samples which were hand-picked for phenotypes and his-72 timecourse experiment 
+                grep('picked', sampleSheet$sample_name, value = T),
+                grep('timecourse', sampleSheet$sample_name, value = T))
+
+sampleSheet <- sampleSheet[!sample_name %in% excluded]
 
 # get a mapping between guides and samples
 sampleGuides <- sapply(simplify = F, unique(sampleSheet$sample_name), function(s) {
@@ -66,94 +95,64 @@ colnames(sgrna_scores_numeric)[1] <- 'sgRNA'
 colnames(sgrna_scores_numeric) <- gsub("[\\' ]", "", colnames(sgrna_scores_numeric))
 
 # now merge the sgRNA efficiency scores we obtained from the pipeline and the metrics obtained from external sources
-
-# type: choose 'boolean' or 'numeric'
-plot_scores <- function(dt, type) {
-  require(ggpubr)
-  if(type == 'boolean') {
-    mdt <- melt(dt, id.vars = c('sgRNA', 'sgrna_efficiency'), 
-                measure.vars = setdiff(colnames(dt), c('sgRNA', 'sgrna_efficiency')))
-    plots <- sapply(simplify = F, split(mdt, mdt$variable), function(x){
-      if(sum(x$value == TRUE) > -1 & sum(x$value == FALSE) > -1) {
-        ggboxplot(x, x = 'value', y = 'sgrna_efficiency',
-                  palette = "jco", legend = 'none',
-                  add = "jitter", color = 'value',
-                  add.params = list(size = 1, alpha = 0.5), outlier.shape = NA) + 
-          stat_compare_means() + labs(title = unique(x$variable))
-      } else {
-        message(paste(c("Not plotting for ",unique(as.character(x$variable)), 
-        " the variable doesn't contain two categories with at least 5 members")))
-        return(NULL)
-      }
-    })
-    plots <- plots[!sapply(plots, is.null)]
-    return(plots)
-  } else if(type == 'numeric') {
-    mdt <- melt(dt, id.vars = c('sgRNA', 'sgrna_efficiency'), 
-                measure.vars = setdiff(colnames(dt), c('sgRNA', 'sgrna_efficiency')))
-    plots <- sapply(simplify = F, split(mdt, mdt$variable), function(x) {
-      ggplot(x, aes(x = sgrna_efficiency, y = value)) + 
-        geom_point() + geom_smooth(method = 'lm') + 
-        labs(title = unique(x$variable), 
-             subtitle = paste('pearsons_corr:', 
-                              round(cor(x$sgrna_efficiency, x$value), 2))) + 
-        theme_bw()
-    })
-    return(plots)
-  }
-}
-
 dt <- merge(sgrna_stats, sgrna_scores_boolean, by = 'sgRNA')
-plots <- plot_scores(dt, 'boolean')
-p <- cowplot::plot_grid(plotlist = plots, ncol = 4)
+mdt <- melt(dt, measure.vars = 3:ncol(dt))
+p <- ggpubr::ggboxplot(mdt, x = 'value', y = 'sgrna_efficiency', add = 'jitter', 
+                  facet.by = 'variable', color = 'value') +
+  stat_compare_means(method = 'wilcox.test', label.y = 15)
 ggsave(filename = 'sgrna_scores.boolean.pdf', plot = p, width = 10, height = 8, units = 'in')
+
 
 dt <- merge(sgrna_stats, sgrna_scores_numeric, by = 'sgRNA')
 dt[is.na(percent_in_injection)]$percent_in_injection <- mean(dt$percent_in_injection, na.rm = T)
+mdt <- melt(dt, measure.vars = 3:ncol(dt))
+mdt$efficiency_threshold <- "sgrna efficiency >= 0%"
+added_row_count <- nrow(mdt[sgrna_efficiency >= 4])
+mdt <- rbind(mdt, mdt[sgrna_efficiency >= 4])
+mdt[(nrow(mdt)-added_row_count+1):nrow(mdt)]$efficiency_threshold <- 'sgrna efficiency >= 4%'
+p <- ggpubr::ggscatter(mdt, x = 'sgrna_efficiency',y = 'value',
+                  add = 'reg.line', color = 'efficiency_threshold', 
+                  facet.by = 'variable', ncol = 4, scales = 'free') + 
+  stat_cor(aes(color = efficiency_threshold), label.x = 4)
+ggsave(filename = 'sgrna_scores.numerical.double_regression_line.pdf', plot = p, width = 12, height = 9, units = 'in')
 
-plots <- plot_scores(dt[sgrna_efficiency >= 5], 'numeric')
-p <- cowplot::plot_grid(plotlist = plots, ncol = 4)
-ggsave(filename = 'sgrna_scores.numerical.pdf', plot = p, width = 10, height = 8, units = 'in')
+# same as above, with single regression line
+p <- ggpubr::ggscatter(mdt, x = 'sgrna_efficiency',y = 'value',
+                       add = 'reg.line', color = 'gray',
+                       facet.by = 'variable', ncol = 5, scales = 'free') + 
+  stat_cor(label.x = 3)
+ggsave(filename = 'sgrna_scores.numerical.single_regression_line.pdf', plot = p, width = 15, height = 9, units = 'in')
 
 
+# random forest model, variable importance calculation
 sgRNA_scores <- merge(cbind(sgrna_scores_boolean[,1], 
                             apply(sgrna_scores_boolean[,-1], 2, function(x) {as.factor(as.numeric(x))})), 
                       sgrna_scores_numeric, by = 'sgRNA')
 
 dt <- merge(sgrna_stats, sgRNA_scores, by = 'sgRNA')
-
+dt[is.na(percent_in_injection)]$percent_in_injection <- mean(dt$percent_in_injection, na.rm = T)
 df <- data.frame(dt[,-1], row.names = dt$sgRNA)
-
-# remove lethal gene features # discuss with jj # predictions are driven by these features
-# df <- df[,grep('lethal', colnames(df), invert = T)]
 
 # one variable has a missing value, just impute that
 fit <- ranger::ranger(sgrna_efficiency ~ ., df, num.trees = 1000, importance = 'permutation')
-
 imp <- ranger::importance(fit)
+p1 <- ggplot(data.frame('importance' = imp, 'variable' = names(imp)), aes(x = reorder(variable, importance), y = importance)) +
+  geom_bar(stat = 'identity') + coord_flip() + labs(x = 'Score', y = 'Variable Importance') +
+  theme(text = element_text(size = 14))
 
-ggplot(data.frame('importance' = imp, 'variable' = names(imp)), aes(x = reorder(variable, importance), y = importance)) +
-  geom_bar(stat = 'identity') + coord_flip()
-
-ggpubr::ggscatter(data.frame('pred' = ranger::predictions(fit, df[,-1]), 'actual' = df$sgrna_efficiency), 
-                  x = 'actual', y = 'pred', add = 'reg.line', cor.coef = T, cor.coef.coord = c(15, 10), 
-                  cor.coef.size = 6)
-
-# pick top variables
-top <- names(sort(imp, decreasing = T)[1:5])
-
+# pick top variables, re-build model with top variables
+top <- names(sort(imp, decreasing = T)[1:10])
 fit2 <- ranger::ranger(sgrna_efficiency ~ ., subset(df, select = c('sgrna_efficiency', top)), 
                        num.trees = 1000, importance = 'permutation')
-
 imp2 <- ranger::importance(fit2)
-ggplot(data.frame('importance' = imp2, 'variable' = names(imp2)), 
-       aes(x = reorder(variable, importance), y = importance)) +
-  geom_bar(stat = 'identity') + coord_flip()
+# show correlation between prediction and actual value
+p2 <- ggpubr::ggscatter(data.frame('pred' = ranger::predictions(fit2, df[,-1]), 'actual' = df$sgrna_efficiency), 
+                  x = 'actual', y = 'pred', add = 'reg.line', cor.coef = T, cor.coef.coord = c(5, 10), 
+                  cor.coef.size = 6) + 
+                  labs(title = 'Correlation between actual\nand predicted values\nusing top 10 most important variables')
 
-ggpubr::ggscatter(data.frame('pred' = ranger::predictions(fit2, df[,-1]), 'actual' = df$sgrna_efficiency), 
-                  x = 'actual', y = 'pred', add = 'reg.line', cor.coef = T, cor.coef.coord = c(15, 10), 
-                  cor.coef.size = 6)
+p <- cowplot::plot_grid(p1, p2)
+ggsave(filename = 'sgrna_scores.meta_prediction_randomforest.pdf', plot = p, width = 10, height = 6, units = 'in')
 
-# TODO: split test/train and report predictions 
-# IDEA: if we split sgrna efficiency >5 or <5 then we see some scores are predictive
+
 
