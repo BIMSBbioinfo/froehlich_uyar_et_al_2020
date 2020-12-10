@@ -1,4 +1,9 @@
 sample	amplicon	generation	analysisGroup	temperature
+gen_1624C_F1_lin-41.sg15sg16_sg26sg27_sgPool	lin-41	F1	gen_lin-41_all	1624C
+gen_1624C_F2_lin-41.sg15sg16_sg26sg27_sgPool	lin-41	F2	gen_lin-41_all	1624C
+gen_1624C_F3_lin-41.sg15sg16_sg26sg27_sgPool	lin-41	F3	gen_lin-41_all	1624C
+gen_1624C_F4_lin-41.sg15sg16_sg26sg27_sgPool	lin-41	F4	gen_lin-41_all	1624C
+gen_1624C_F5_lin-41.sg15sg16_sg26sg27_sgPool	lin-41	F5	gen_lin-41_all	1624C
 gen_1624C_F1_lin-41_pool	lin-41	F1	gen_lin-41_pool_16C	16C
 gen_16C_F2_lin-41_pool	lin-41	F2	gen_lin-41_pool_16C	16C
 gen_16C_F3_lin-41_pool	lin-41	F3	gen_lin-41_pool_16C	16C
