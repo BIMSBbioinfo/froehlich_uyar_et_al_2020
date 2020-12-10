@@ -75,12 +75,14 @@ parallel::stopCluster(cl)
 # samples: list of samples with generation ids used as names (e.g. list('F2' = a, 'F3' = b))
 # reference_sample : which generation is the reference? e.g. 'F2'
 # readSupportThreshold: only keep deletions in reference sample with at least this many reads supporting
-get_survival_rate <- function(dt, samples, reference_sample, readSupportThreshold) {
+get_survival_rate <- function(dt, samples, reference_sample = NULL, readSupportThreshold) {
   dt <- dt[sample %in% unlist(samples)][ReadSupport >= readSupportThreshold]
   #now summarize indels by sample 
   dt <- data.table::dcast(dt, indelID ~ sample, value.var = 'freq')
   # remove deletions that don't occur in reference sample 
-  dt <- dt[!is.na(get(samples[[reference_sample]]))]
+  if(!is.null(reference_sample)) {
+    dt <- dt[!is.na(get(samples[[reference_sample]]))]
+  }
   colnames(dt)[2:ncol(dt)] <- names(samples)
   return(dt)
 }
@@ -114,8 +116,8 @@ plot_read_survival <- function(reads_dt, samples, sites, lib_sizes) {
   return(p)
 }
 
-get_plots <- function(dt, samples_analysed, sample_order = c('F2', 'F3', 'F4', 'F5'), 
-                      reference_generation = 'F2', 
+get_plots <- function(dt, samples_analysed, sample_order = c('F1', 'F2', 'F3', 'F4', 'F5'), 
+                      reference_generation = 'F1', 
                       readSupportThreshold = 0, sites) {
   plots <- sapply(simplify = F, names(samples_analysed), function(analysis) {
     message(analysis)
@@ -170,18 +172,30 @@ get_plots <- function(dt, samples_analysed, sample_order = c('F2', 'F3', 'F4', '
 # Subset deletions for those that exist in F2. Check the number of deletions that still exist in F3, F4, and F5 - 
 # categorized by the deletions' overlap with important sites. 
 # 'no_overlap' serves as a control: This is the category of deletions thatdon't overlap any of the other sites. 
-plots <- get_plots(dt = deletions, samples_analysed = samples_analysed, reference_generation = 'F1', 
-                   sample_order = c('F1', 'F2', 'F3', 'F4', 'F5'), readSupportThreshold = 0, sites = sites)
+plots <- get_plots(dt = deletions, samples_analysed = samples_analysed[1], reference_generation = 'F2', 
+                   sample_order = c('F2', 'F3', 'F4', 'F5'), readSupportThreshold = 0, sites = sites)
 
 lapply(names(plots), function(analysis) {
-  ggsave(filename = paste0("deletions_over_generations.",analysis,'.pdf'), 
+  ggsave(filename = paste0("deletions_over_generations.start_at_F2.",analysis,'.pdf'), 
          plots[[analysis]][['p2']], width = 12, height = 8, units = 'in')
-  pdf(file = paste0("deletions_over_generations.heatmap.",analysis,'.pdf'))
+  pdf(file = paste0("deletions_over_generations.heatmap.start_at_F2.",analysis,'.pdf'))
   print(plots[[analysis]][['p1']])
   dev.off()
 })
 
-# Check how many reads with deletions in F2 are eliminated in later generations {.tabset}
+# same as above, starting at F1
+plots <- get_plots(dt = deletions, samples_analysed = samples_analysed[1], reference_generation = 'F1', 
+                   sample_order = c('F1', 'F2', 'F3', 'F4', 'F5'), readSupportThreshold = 0, sites = sites)
+
+lapply(names(plots), function(analysis) {
+  ggsave(filename = paste0("deletions_over_generations.start_at_F1.",analysis,'.pdf'), 
+         plots[[analysis]][['p2']], width = 12, height = 8, units = 'in')
+  pdf(file = paste0("deletions_over_generations.heatmap.start_at_F1.",analysis,'.pdf'))
+  print(plots[[analysis]][['p1']])
+  dev.off()
+})
+
+# Check how many reads with deletions in F1 are eliminated in later generations {.tabset}
 # This time, we count reads (rather than grouping reads as deletions/genetypes) that affect different sites (via deletions in reads) and check the percentage/count of those that exist in different generations. 
 #'no_overlap' serves as a control: This is the category of reads that have deletions that don't overlap any of the other sites. 
 plots <- sapply(simplify = F, names(samples_analysed), function(analysis) {
@@ -193,4 +207,8 @@ lapply(names(plots), function(analysis) {
   ggsave(filename = paste0("reads_with_deletions_over_generations.",analysis,'.pdf'), 
          plots[[analysis]] + labs(title = analysis), width = 12, height = 8, units = 'in')
 })
+
+
+
+
 
