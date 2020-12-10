@@ -172,7 +172,7 @@ get_plots <- function(dt, samples_analysed, sample_order = c('F1', 'F2', 'F3', '
 # Subset deletions for those that exist in F2. Check the number of deletions that still exist in F3, F4, and F5 - 
 # categorized by the deletions' overlap with important sites. 
 # 'no_overlap' serves as a control: This is the category of deletions thatdon't overlap any of the other sites. 
-plots <- get_plots(dt = deletions, samples_analysed = samples_analysed[1], reference_generation = 'F2', 
+plots <- get_plots(dt = deletions, samples_analysed = samples_analysed, reference_generation = 'F2', 
                    sample_order = c('F2', 'F3', 'F4', 'F5'), readSupportThreshold = 0, sites = sites)
 
 lapply(names(plots), function(analysis) {
@@ -184,7 +184,7 @@ lapply(names(plots), function(analysis) {
 })
 
 # same as above, starting at F1
-plots <- get_plots(dt = deletions, samples_analysed = samples_analysed[1], reference_generation = 'F1', 
+plots <- get_plots(dt = deletions, samples_analysed = samples_analysed, reference_generation = 'F1', 
                    sample_order = c('F1', 'F2', 'F3', 'F4', 'F5'), readSupportThreshold = 0, sites = sites)
 
 lapply(names(plots), function(analysis) {

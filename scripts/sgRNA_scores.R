@@ -123,7 +123,6 @@ p <- ggpubr::ggscatter(mdt, x = 'sgrna_efficiency',y = 'value',
   stat_cor(label.x = 3)
 ggsave(filename = 'sgrna_scores.numerical.single_regression_line.pdf', plot = p, width = 15, height = 9, units = 'in')
 
-
 # random forest model, variable importance calculation
 sgRNA_scores <- merge(cbind(sgrna_scores_boolean[,1], 
                             apply(sgrna_scores_boolean[,-1], 2, function(x) {as.factor(as.numeric(x))})), 
